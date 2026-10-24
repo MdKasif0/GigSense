@@ -44,6 +44,7 @@ const SUPPORTED_EVIDENCE_TYPES = new Set([
   "image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf",
   "text/plain", "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "audio/flac", "audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav", "audio/webm", "audio/x-m4a",
 ]);
 
 function fmtDate(iso: string) {
@@ -74,7 +75,7 @@ function evidenceTypeFromMime(mime: string): EvidenceItem["type"] {
 
 function isSupportedEvidence(file: File): boolean {
   if (SUPPORTED_EVIDENCE_TYPES.has(file.type)) return true;
-  return /\.(jpe?g|png|webp|gif|pdf|txt|docx?)$/i.test(file.name);
+  return /\.(jpe?g|png|webp|gif|pdf|txt|docx?|flac|mp3|mp4|m4a|ogg|wav|webm)$/i.test(file.name);
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -129,6 +130,7 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
   const [openedRecord, setOpenedRecord] = useState<IncidentRecord | null>(null);
   const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
   const [aiError, setAiError] = useState<string | null>(null);
+  const [transcribingEvidenceId, setTranscribingEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
     listIncidents()
@@ -186,6 +188,23 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
 
   function setEvidenceDescription(id: string, description: string) {
     setPendingEvidence((items) => items.map((item) => item.id === id ? { ...item, description } : item));
+  }
+
+  async function transcribeEvidence(item: PendingEvidence) {
+    setTranscribingEvidenceId(item.id);
+    setFileError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", new File([item.blob], item.fileName, { type: item.mimeType }));
+      const response = await fetch("/api/ai/transcribe", { method: "POST", body: formData });
+      const payload: unknown = await response.json();
+      if (!response.ok || typeof payload !== "object" || payload === null || !("text" in payload) || typeof payload.text !== "string") throw new Error(typeof payload === "object" && payload && "error" in payload ? String(payload.error) : "Transcription failed.");
+      setEvidenceDescription(item.id, `Transcript (${"model" in payload && typeof payload.model === "string" ? payload.model : "Groq"}): ${payload.text}`);
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : "Transcription failed. Enter relevant evidence notes manually.");
+    } finally {
+      setTranscribingEvidenceId(null);
+    }
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -420,7 +439,7 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
                 type="file"
                 multiple
                 className="hidden"
-                accept="image/jpeg,image/png,image/webp,image/gif,.pdf,.doc,.docx,.txt"
+                accept="image/jpeg,image/png,image/webp,image/gif,audio/flac,audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm,.pdf,.doc,.docx,.txt,.m4a"
                 onChange={(e) => handleFiles(e.target.files)}
               />
               <div className="flex justify-center mb-2" style={{ color: "var(--gs-text-muted)" }}>
@@ -430,7 +449,7 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
                 Drop files here or click to browse
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--gs-text-muted)" }}>
-                Images · PDFs · TXT · DOC · DOCX · up to 15 MB per file
+                Images · documents · audio notes · up to 15 MB per file
               </p>
             </div>
             {fileError && <p className="mt-2 text-xs" style={{ color: "var(--gs-error)" }}>{fileError}</p>}
@@ -460,6 +479,11 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
                       placeholder="Optional: manually enter relevant facts from this file for AI review"
                       aria-label={`Evidence notes for ${pe.fileName}`}
                     />
+                    {pe.type === "audio" && (aiAvailable ? (
+                      <button type="button" className="gs-btn-secondary mt-2" style={{ fontSize: "0.75rem", padding: "0.35rem 0.55rem" }} onClick={() => transcribeEvidence(pe)} disabled={transcribingEvidenceId === pe.id}>
+                        {transcribingEvidenceId === pe.id ? "Transcribing…" : "Transcribe with Groq"}
+                      </button>
+                    ) : <p className="text-xs mt-2" style={{ color: "var(--gs-warning)" }}>Live transcription is unavailable. Add evidence notes manually.</p>)}
                   </div>
                   <button
                     aria-label={`Remove ${pe.fileName}`}

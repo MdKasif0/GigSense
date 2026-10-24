@@ -11,11 +11,13 @@ export class AiServiceError extends Error {
 export async function requestAiJson(system: string, input: unknown): Promise<unknown> {
   const key = getAiApiKey();
   if (!key) throw new AiServiceError("AI_UNAVAILABLE", "Live AI is not configured. Add GIGSENSE_AI_API_KEY on the server to enable it.");
-  if (getAiProvider() !== "openai") throw new AiServiceError("AI_PROVIDER_UNSUPPORTED", "This build supports the configured OpenAI-compatible provider only.");
+  const provider = getAiProvider();
+  if (provider !== "groq" && provider !== "openai") throw new AiServiceError("AI_PROVIDER_UNSUPPORTED", "This build supports Groq or OpenAI-compatible providers only.");
+  const baseUrl = provider === "groq" ? "https://api.groq.com/openai/v1" : "https://api.openai.com/v1";
 
   let response: Response;
   try {
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
+    response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
