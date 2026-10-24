@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { saveIncident, listIncidents, deleteIncident, saveEvidenceBlob, generateId } from "@/lib/db";
-import type { IncidentRecord, EvidenceItem, TimelineEvent } from "@/types/incident";
+import type { IncidentRecord, EvidenceItem } from "@/types/incident";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 

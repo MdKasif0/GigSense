@@ -125,13 +125,15 @@ export function DeliveryAnalyzer() {
       const mins = p.get("mins");
       const platform = p.get("platform");
       if (pay || km || mins || platform) {
-        setForm((f) => ({
-          ...f,
-          ...(pay ? { offeredPayment: pay } : {}),
-          ...(km ? { estimatedDistanceKm: km } : {}),
-          ...(mins ? { estimatedDurationMinutes: mins } : {}),
-          ...(platform ? { platform } : {}),
-        }));
+        window.setTimeout(() => {
+          setForm((f) => ({
+            ...f,
+            ...(pay ? { offeredPayment: pay } : {}),
+            ...(km ? { estimatedDistanceKm: km } : {}),
+            ...(mins ? { estimatedDurationMinutes: mins } : {}),
+            ...(platform ? { platform } : {}),
+          }));
+        }, 0);
       }
     }
   }, []);

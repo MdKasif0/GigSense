@@ -126,7 +126,6 @@ export function DashboardClient() {
       .finally(() => setLoading(false));
   }, []);
 
-  const hasUserRecords = deliveries.length > 0 || incidents.length > 0;
   const recentDeliveries = deliveries.length > 0 ? deliveries.slice(0, 3) : (SAMPLE_DELIVERIES as DeliveryAnalysis[]);
   const recentIncidents = incidents.slice(0, 3);
   const isShowingSample = deliveries.length === 0 && !loading;
