@@ -178,7 +178,7 @@ export function DashboardClient() {
           </div>
         </div>
 
-        {/* Offline / PWA Active Pill Badge */}
+        {/* Local persistence status */}
         <div
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
           style={{
@@ -188,7 +188,7 @@ export function DashboardClient() {
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--gs-green)" }} />
-          <span>Local Mode Active</span>
+          <span>Stored locally</span>
         </div>
       </div>
 
