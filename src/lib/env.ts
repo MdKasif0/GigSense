@@ -30,7 +30,7 @@ export function getAiModel(): string | null {
 
 /** Speech-to-text model identifier, used only by the server transcription route. */
 export function getSttModel(): string | null {
-  const model = process.env.GIGSENSE_STT_MODEL;
+  const model = process.env.GIGSENSE_STT_MODEL ?? process.env.GROQ_STT_MODEL;
   return model && model.length > 0 ? model : null;
 }
 

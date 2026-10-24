@@ -182,17 +182,31 @@ export function DeliveryAnalyzer() {
   }
 
   function analyse() {
-    if (!validate()) return;
-    const pay = parseNumericInput(form.offeredPayment);
-    const dist = parseNumericInput(form.estimatedDistanceKm);
-    const dur = parseNumericInput(form.estimatedDurationMinutes);
-    const cost = parseNumericInput(form.vehicleCostPerKm);
-    const extra = form.additionalExpenses.trim() === "" ? 0 : parseNumericInput(form.additionalExpenses);
+    analyseForm(form);
+  }
+
+  function analyseForm(activeForm: FormState) {
+    const pay = parseNumericInput(activeForm.offeredPayment);
+    const dist = parseNumericInput(activeForm.estimatedDistanceKm);
+    const dur = parseNumericInput(activeForm.estimatedDurationMinutes);
+    const cost = parseNumericInput(activeForm.vehicleCostPerKm);
+    const extra = activeForm.additionalExpenses.trim() === "" ? 0 : parseNumericInput(activeForm.additionalExpenses);
+    const validationError = validateDeliveryInputs(pay, dist, dur, cost, extra);
+    if (validationError) {
+      const errs: FormErrors = {};
+      if (isNaN(pay) || pay < 0) errs.offeredPayment = "Enter a nonnegative payment amount.";
+      if (isNaN(dist) || dist <= 0) errs.estimatedDistanceKm = "Enter a distance greater than zero.";
+      if (isNaN(dur) || dur <= 0) errs.estimatedDurationMinutes = "Enter a duration greater than zero.";
+      if (isNaN(cost) || cost < 0) errs.vehicleCostPerKm = "Enter a nonnegative cost per km.";
+      if (isNaN(extra) || extra < 0) errs.additionalExpenses = "Enter nonnegative additional expenses.";
+      setErrors(errs);
+      return;
+    }
     const calc = calculateDeliveryProfitability(pay, dist, dur, cost, extra);
     const record: DeliveryAnalysis = {
       id: generateId(),
       createdAt: new Date().toISOString(),
-      platform: form.platform || undefined,
+      platform: activeForm.platform || undefined,
       offeredPayment: pay,
       estimatedDistanceKm: dist,
       estimatedDurationMinutes: dur,
@@ -292,18 +306,22 @@ export function DeliveryAnalyzer() {
   }
 
   function applyVoiceOffer(values: VoiceRouteExtraction) {
-    setForm((current) => ({
-      ...current,
-      ...(values.payment !== null ? { offeredPayment: String(values.payment) } : {}),
-      ...(values.distanceKm !== null ? { estimatedDistanceKm: String(values.distanceKm) } : {}),
-      ...(values.durationMinutes !== null ? { estimatedDurationMinutes: String(values.durationMinutes) } : {}),
-      ...(values.vehicleCostPerKm !== null ? { vehicleCostPerKm: String(values.vehicleCostPerKm) } : {}),
-      ...(values.additionalExpenses !== null ? { additionalExpenses: String(values.additionalExpenses) } : {}),
-    }));
+    const nextForm: FormState = {
+      ...form,
+      offeredPayment: values.payment === null ? "" : String(values.payment),
+      estimatedDistanceKm: values.distanceKm === null ? "" : String(values.distanceKm),
+      estimatedDurationMinutes: values.durationMinutes === null ? "" : String(values.durationMinutes),
+      vehicleCostPerKm: values.vehicleCostPerKm === null ? "" : String(values.vehicleCostPerKm),
+      additionalExpenses: values.additionalExpenses === null ? "" : String(values.additionalExpenses),
+    };
+    setForm(nextForm);
     setErrors({});
     setResult(null);
     setSaved(false);
     setVoiceOpen(false);
+    if (values.payment !== null && values.distanceKm !== null && values.durationMinutes !== null && values.vehicleCostPerKm !== null) {
+      analyseForm(nextForm);
+    }
   }
 
   const verdict = result ? getProfitabilityVerdict(result.estimatedContributionPerHour) : null;
