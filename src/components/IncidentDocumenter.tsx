@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { saveIncident, listIncidents, deleteIncident, saveEvidenceBlob, generateId } from "@/lib/db";
-import type { IncidentRecord, EvidenceItem, CreateIncidentInput } from "@/types/incident";
+import type { IncidentRecord, EvidenceItem, TimelineEvent } from "@/types/incident";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -38,6 +38,12 @@ function IconShield() {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PLATFORMS = ["Zomato", "Swiggy", "Porter", "Dunzo", "Blinkit", "Zepto", "Rapido", "Urban Company", "Other"];
+const MAX_EVIDENCE_FILE_BYTES = 15 * 1024 * 1024;
+const SUPPORTED_EVIDENCE_TYPES = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf",
+  "text/plain", "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
 
 function fmtDate(iso: string) {
   try {
@@ -65,6 +71,11 @@ function evidenceTypeFromMime(mime: string): EvidenceItem["type"] {
   return "other";
 }
 
+function isSupportedEvidence(file: File): boolean {
+  if (SUPPORTED_EVIDENCE_TYPES.has(file.type)) return true;
+  return /\.(jpe?g|png|webp|gif|pdf|txt|docx?)$/i.test(file.name);
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FormState {
@@ -72,6 +83,8 @@ interface FormState {
   platform: string;
   platformCustom: string;
   workerStatement: string;
+  eventDescription: string;
+  eventDateTime: string;
 }
 
 interface FormErrors {
@@ -84,6 +97,8 @@ const INITIAL_FORM: FormState = {
   platform: "",
   platformCustom: "",
   workerStatement: "",
+  eventDescription: "",
+  eventDateTime: "",
 };
 
 interface PendingEvidence {
@@ -109,6 +124,8 @@ export function IncidentDocumenter() {
   const [history, setHistory] = useState<IncidentRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [openedRecord, setOpenedRecord] = useState<IncidentRecord | null>(null);
 
   useEffect(() => {
     listIncidents()
@@ -134,7 +151,16 @@ export function IncidentDocumenter() {
   async function handleFiles(files: FileList | null) {
     if (!files) return;
     const added: PendingEvidence[] = [];
+    const rejected: string[] = [];
     for (const file of Array.from(files)) {
+      if (!isSupportedEvidence(file)) {
+        rejected.push(`${file.name}: use an image, PDF, TXT, DOC, or DOCX file.`);
+        continue;
+      }
+      if (file.size === 0 || file.size > MAX_EVIDENCE_FILE_BYTES) {
+        rejected.push(`${file.name}: files must be between 1 byte and 15 MB.`);
+        continue;
+      }
       const storageKey = `evidence-${generateId()}`;
       added.push({
         id: generateId(),
@@ -148,6 +174,7 @@ export function IncidentDocumenter() {
       });
     }
     setPendingEvidence((p) => [...p, ...added]);
+    setFileError(rejected.length ? rejected.join(" ") : null);
   }
 
   function removeEvidence(id: string) {
@@ -191,7 +218,17 @@ export function IncidentDocumenter() {
         title: form.title.trim(),
         platform,
         workerStatement: form.workerStatement.trim(),
-        timeline: [],
+        timeline: [
+          {
+            id: generateId(),
+            timestamp: form.eventDateTime ? new Date(form.eventDateTime).toISOString() : undefined,
+            description: form.eventDescription.trim() || form.workerStatement.trim(),
+            evidenceIds: [],
+            source: "worker_statement",
+            verificationStatus: "worker_reported",
+            confidence: "unknown",
+          },
+        ],
         evidence: evidenceItems,
         extractedFacts: [],
         contradictions: [],
@@ -204,6 +241,7 @@ export function IncidentDocumenter() {
       await saveIncident(record);
       setHistory((h) => [record, ...h]);
       setSavedRecord(record);
+      setOpenedRecord(record);
       setSaved(true);
       // Reset form
       setForm(INITIAL_FORM);
@@ -218,6 +256,7 @@ export function IncidentDocumenter() {
   async function handleDelete(id: string) {
     await deleteIncident(id);
     setHistory((h) => h.filter((x) => x.id !== id));
+    if (openedRecord?.id === id) setOpenedRecord(null);
   }
 
   function handleReset() {
@@ -226,6 +265,8 @@ export function IncidentDocumenter() {
     setErrors({});
     setSaved(false);
     setSavedRecord(null);
+    setOpenedRecord(null);
+    setFileError(null);
   }
 
   return (
@@ -295,6 +336,13 @@ export function IncidentDocumenter() {
             </p>
           </div>
 
+          <div className="rounded-lg p-4" style={{ background: "var(--gs-surface-alt)", border: "1px solid var(--gs-border)" }}>
+            <p className="gs-label">Evidence Timeline <span style={{ color: "var(--gs-text-muted)", fontWeight: 400 }}>(time optional)</span></p>
+            <p className="text-xs mb-3" style={{ color: "var(--gs-text-muted)" }}>This event is saved as a worker statement, not independently verified evidence.</p>
+            <input id="gp-event-time" type="datetime-local" className="gs-input mb-2" value={form.eventDateTime} onChange={(e) => setField("eventDateTime", e.target.value)} />
+            <textarea id="gp-event-description" rows={2} className="gs-input resize-y" placeholder="Optional key event, e.g. 'Arrived at restaurant and waited for the order.'" value={form.eventDescription} onChange={(e) => setField("eventDescription", e.target.value)} />
+          </div>
+
           {/* File Upload */}
           <div>
             <p className="gs-label">Evidence Files <span style={{ color: "var(--gs-text-muted)", fontWeight: 400 }}>(optional)</span></p>
@@ -319,7 +367,7 @@ export function IncidentDocumenter() {
                 type="file"
                 multiple
                 className="hidden"
-                accept="image/*,.pdf,.doc,.docx,.txt,video/*,audio/*"
+                accept="image/jpeg,image/png,image/webp,image/gif,.pdf,.doc,.docx,.txt"
                 onChange={(e) => handleFiles(e.target.files)}
               />
               <div className="flex justify-center mb-2" style={{ color: "var(--gs-text-muted)" }}>
@@ -329,9 +377,10 @@ export function IncidentDocumenter() {
                 Drop files here or click to browse
               </p>
               <p className="text-xs mt-1" style={{ color: "var(--gs-text-muted)" }}>
-                Screenshots · Photos · PDFs · Documents · Audio · Video
+                Images · PDFs · TXT · DOC · DOCX · up to 15 MB per file
               </p>
             </div>
+            {fileError && <p className="mt-2 text-xs" style={{ color: "var(--gs-error)" }}>{fileError}</p>}
           </div>
 
           {/* Evidence list */}
@@ -371,7 +420,7 @@ export function IncidentDocumenter() {
           style={{ background: "var(--gs-green-subtle)", color: "var(--gs-success)" }}
         >
           <span className="mt-0.5 shrink-0"><IconShield /></span>
-          <span>All evidence is stored locally on your device. Nothing is sent to any server unless you explicitly request AI analysis.</span>
+          <span>Supported files are stored as binary data in IndexedDB on this device, never as base64 in local storage. Files are treated as evidence only and are not executed.</span>
         </div>
 
         {/* Actions */}
@@ -397,11 +446,33 @@ export function IncidentDocumenter() {
           >
             <p className="font-semibold">Incident recorded: {savedRecord.title}</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--gs-text-secondary)" }}>
-              {savedRecord.evidence.length} evidence file{savedRecord.evidence.length !== 1 ? "s" : ""} saved. AI analysis will be available in a future step.
+              {savedRecord.evidence.length} evidence file{savedRecord.evidence.length !== 1 ? "s" : ""} and {savedRecord.timeline.length} timeline event saved locally.
             </p>
           </div>
         )}
       </div>
+
+      {openedRecord && (
+        <section className="gs-card-modern p-5" aria-label="Incident timeline">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-base font-semibold" style={{ color: "var(--gs-text-primary)" }}>Timeline: {openedRecord.title}</h2>
+              <p className="text-xs mt-1" style={{ color: "var(--gs-text-muted)" }}>Sources and uncertainty are preserved; no event is marked independently verified unless explicitly recorded as such.</p>
+            </div>
+            <button className="gs-btn-secondary" style={{ fontSize: "0.75rem", padding: "0.4rem 0.6rem" }} onClick={() => setOpenedRecord(null)}>Close</button>
+          </div>
+          <div className="space-y-2">
+            {openedRecord.timeline.map((event) => (
+              <div key={event.id} className="rounded-lg p-3" style={{ background: "var(--gs-surface-alt)", border: "1px solid var(--gs-border)" }}>
+                <p className="text-sm" style={{ color: "var(--gs-text-primary)" }}>{event.description}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--gs-text-muted)" }}>
+                  {event.timestamp ? fmtDate(event.timestamp) : "Time unknown"} · {event.source.replace("_", " ")} · {event.verificationStatus.replace("_", " ")} · confidence: {event.confidence}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── History ── */}
       <div>
@@ -443,6 +514,14 @@ export function IncidentDocumenter() {
                     {rec.evidence.length} file{rec.evidence.length !== 1 ? "s" : ""} · {fmtDate(rec.createdAt)}
                   </p>
                 </div>
+                <button
+                  aria-label={`Open incident: ${rec.title}`}
+                  onClick={() => setOpenedRecord(rec)}
+                  className="gs-btn-secondary shrink-0"
+                  style={{ fontSize: "0.75rem", padding: "0.4rem 0.6rem" }}
+                >
+                  Open
+                </button>
                 <button
                   aria-label={`Delete incident: ${rec.title}`}
                   onClick={() => handleDelete(rec.id)}

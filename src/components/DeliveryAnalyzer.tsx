@@ -5,9 +5,10 @@ import {
   calculateDeliveryProfitability,
   getProfitabilityVerdict,
   formatDuration,
+  validateDeliveryInputs,
 } from "@/lib/calculations";
 import { saveDelivery, listDeliveries, deleteDelivery, generateId } from "@/lib/db";
-import type { DeliveryAnalysis, CreateDeliveryInput } from "@/types/delivery";
+import type { DeliveryAnalysis } from "@/types/delivery";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ interface FormErrors {
   estimatedDistanceKm?: string;
   estimatedDurationMinutes?: string;
   vehicleCostPerKm?: string;
+  additionalExpenses?: string;
 }
 
 const INITIAL_FORM: FormState = {
@@ -146,10 +148,15 @@ export function DeliveryAnalyzer() {
     const dist = parseFloat(form.estimatedDistanceKm);
     const dur = parseFloat(form.estimatedDurationMinutes);
     const cost = parseFloat(form.vehicleCostPerKm);
-    if (isNaN(pay) || pay <= 0) errs.offeredPayment = "Enter a positive payment amount.";
-    if (isNaN(dist) || dist <= 0) errs.estimatedDistanceKm = "Enter a positive distance.";
-    if (isNaN(dur) || dur <= 0) errs.estimatedDurationMinutes = "Enter a positive duration.";
-    if (isNaN(cost) || cost < 0) errs.vehicleCostPerKm = "Enter a valid cost per km (can be 0).";
+    const extra = form.additionalExpenses.trim() === "" ? 0 : parseFloat(form.additionalExpenses);
+    const error = validateDeliveryInputs(pay, dist, dur, cost, extra);
+    if (error) {
+      if (isNaN(pay) || pay < 0) errs.offeredPayment = "Enter a nonnegative payment amount.";
+      if (isNaN(dist) || dist <= 0) errs.estimatedDistanceKm = "Enter a distance greater than zero.";
+      if (isNaN(dur) || dur <= 0) errs.estimatedDurationMinutes = "Enter a duration greater than zero.";
+      if (isNaN(cost) || cost < 0) errs.vehicleCostPerKm = "Enter a nonnegative cost per km.";
+      if (isNaN(extra) || extra < 0) errs.additionalExpenses = "Enter nonnegative additional expenses.";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -160,7 +167,7 @@ export function DeliveryAnalyzer() {
     const dist = parseFloat(form.estimatedDistanceKm);
     const dur = parseFloat(form.estimatedDurationMinutes);
     const cost = parseFloat(form.vehicleCostPerKm);
-    const extra = parseFloat(form.additionalExpenses) || 0;
+    const extra = form.additionalExpenses.trim() === "" ? 0 : parseFloat(form.additionalExpenses);
     const calc = calculateDeliveryProfitability(pay, dist, dur, cost, extra);
     const record: DeliveryAnalysis = {
       id: generateId(),
@@ -197,6 +204,20 @@ export function DeliveryAnalyzer() {
   async function handleDelete(id: string) {
     await deleteDelivery(id);
     setHistory((h) => h.filter((x) => x.id !== id));
+  }
+
+  function handleOpen(record: DeliveryAnalysis) {
+    setForm({
+      platform: record.platform ?? "",
+      offeredPayment: String(record.offeredPayment),
+      estimatedDistanceKm: String(record.estimatedDistanceKm),
+      estimatedDurationMinutes: String(record.estimatedDurationMinutes),
+      vehicleCostPerKm: String(record.vehicleCostPerKm),
+      additionalExpenses: String(record.additionalExpenses ?? 0),
+    });
+    setResult(record);
+    setSaved(true);
+    setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
   }
 
   function handleReset() {
@@ -264,6 +285,7 @@ export function DeliveryAnalyzer() {
               onChange={(e) => setField("estimatedDistanceKm", e.target.value)}
             />
             {errors.estimatedDistanceKm && <p className="mt-1 text-xs" style={{ color: "var(--gs-error)" }}>{errors.estimatedDistanceKm}</p>}
+            <p className="mt-1 text-xs" style={{ color: "var(--gs-text-muted)" }}>User-provided estimate — no live route service is connected.</p>
           </div>
 
           {/* Duration */}
@@ -282,6 +304,7 @@ export function DeliveryAnalyzer() {
               onChange={(e) => setField("estimatedDurationMinutes", e.target.value)}
             />
             {errors.estimatedDurationMinutes && <p className="mt-1 text-xs" style={{ color: "var(--gs-error)" }}>{errors.estimatedDurationMinutes}</p>}
+            <p className="mt-1 text-xs" style={{ color: "var(--gs-text-muted)" }}>User-provided estimate.</p>
           </div>
 
           {/* Cost/km */}
@@ -308,7 +331,7 @@ export function DeliveryAnalyzer() {
             <label htmlFor="rr-extras" className="gs-label">Additional Expenses <span style={{ color: "var(--gs-text-muted)", fontWeight: 400 }}>(tolls, parking – optional)</span></label>
             <input
               id="rr-extras"
-              className="gs-input"
+              className={`gs-input${errors.additionalExpenses ? " border-[var(--gs-error)]" : ""}`}
               type="number"
               min="0"
               step="0.5"
@@ -316,6 +339,7 @@ export function DeliveryAnalyzer() {
               value={form.additionalExpenses}
               onChange={(e) => setField("additionalExpenses", e.target.value)}
             />
+            {errors.additionalExpenses && <p className="mt-1 text-xs" style={{ color: "var(--gs-error)" }}>{errors.additionalExpenses}</p>}
           </div>
         </div>
 
@@ -358,9 +382,9 @@ export function DeliveryAnalyzer() {
             <MetricTile label="Offered" value={fmtCurrency(result.offeredPayment)} />
             <MetricTile label="Vehicle Cost" value={fmtCurrency(result.calculatedVehicleCost)} dimmed />
             {result.additionalExpenses ? <MetricTile label="Other Expenses" value={fmtCurrency(result.additionalExpenses)} dimmed /> : null}
-            <MetricTile label="Net Contribution" value={fmtCurrency(result.estimatedContribution)} highlight={result.estimatedContribution >= 0} />
-            <MetricTile label="Per Hour" value={`${fmtCurrency(result.estimatedContributionPerHour)}/hr`} highlight />
-            <MetricTile label="Duration" value={formatDuration(result.estimatedDurationMinutes)} />
+            <MetricTile label="Estimated contribution after entered expenses" value={fmtCurrency(result.estimatedContribution)} highlight={result.estimatedContribution >= 0} />
+            <MetricTile label="Estimated contribution / hour" value={`${fmtCurrency(result.estimatedContributionPerHour)}/hr`} highlight />
+            <MetricTile label="Estimated duration" value={formatDuration(result.estimatedDurationMinutes)} />
           </div>
 
           {/* Assumptions note */}
@@ -370,9 +394,9 @@ export function DeliveryAnalyzer() {
           >
             <p className="font-medium mb-1" style={{ color: "var(--gs-text-primary)" }}>Assumptions</p>
             <ul className="list-disc list-inside space-y-0.5">
-              <li>Distance includes return trip or empty leg if applicable.</li>
-              <li>Vehicle cost of ₹{result.vehicleCostPerKm}/km includes fuel and estimated wear.</li>
-              <li>AI-powered explanation will appear here in Step 3.</li>
+              <li>All results are estimates based only on the values entered above.</li>
+              <li>Contribution is not net profit: taxes, unpaid time, and costs you did not enter are not included.</li>
+              <li>Vehicle cost of ₹{result.vehicleCostPerKm}/km and entered extra expenses are deducted.</li>
             </ul>
           </div>
 
@@ -426,6 +450,14 @@ export function DeliveryAnalyzer() {
                       {fmtCurrency(rec.offeredPayment)} offer · {fmtCurrency(rec.estimatedContributionPerHour)}/hr · {fmtDate(rec.createdAt)}
                     </p>
                   </div>
+                  <button
+                    aria-label={`Open analysis for ${rec.platform || "unnamed"}`}
+                    onClick={() => handleOpen(rec)}
+                    className="gs-btn-secondary shrink-0"
+                    style={{ fontSize: "0.75rem", padding: "0.4rem 0.6rem" }}
+                  >
+                    Open
+                  </button>
                   <button
                     aria-label={`Delete analysis for ${rec.platform || "unnamed"}`}
                     onClick={() => handleDelete(rec.id)}

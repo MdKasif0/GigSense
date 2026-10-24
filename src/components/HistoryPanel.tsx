@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { listDeliveries, listIncidents, deleteDelivery, deleteIncident } from "@/lib/db";
+import { listDeliveries, listIncidents, deleteDelivery, deleteIncident, addSampleData } from "@/lib/db";
 import { getProfitabilityVerdict } from "@/lib/calculations";
 import type { DeliveryAnalysis } from "@/types/delivery";
 import type { IncidentRecord } from "@/types/incident";
@@ -59,6 +59,13 @@ export function HistoryPanel() {
     setIncidents((i) => i.filter((x) => x.id !== id));
   }
 
+  async function handleAddSamples() {
+    await addSampleData();
+    const [deliveries, incidents] = await Promise.all([listDeliveries(), listIncidents()]);
+    setDeliveries(deliveries);
+    setIncidents(incidents);
+  }
+
   if (loading) {
     return (
       <div className="gs-card p-8 text-center text-sm" style={{ color: "var(--gs-text-muted)" }}>
@@ -94,6 +101,12 @@ export function HistoryPanel() {
         >
           Incident Records
         </TabButton>
+      </div>
+
+      <div className="flex justify-end">
+        <button className="gs-btn-secondary" onClick={handleAddSamples} style={{ fontSize: "0.8rem", padding: "0.45rem 0.7rem" }}>
+          Add clearly labelled demo data
+        </button>
       </div>
 
       {/* Empty overall */}

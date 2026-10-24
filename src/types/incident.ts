@@ -53,14 +53,23 @@ export interface TimelineEvent {
   /** UUID v4. */
   id: string;
 
-  /** Approximate ISO 8601 timestamp. May be user-provided or system-generated. */
-  timestamp: string;
+  /** ISO 8601 date/time when known. Undefined means the timing is unknown. */
+  timestamp?: string;
 
   /** Worker's description of what happened at this point. */
   description: string;
 
   /** Evidence items that are specifically relevant to this event. */
   evidenceIds: string[];
+
+  /** Where this event comes from; it is never silently treated as verified. */
+  source: "worker_statement" | "document" | "ai_inference" | "independently_verified";
+
+  /** Whether the event has been independently checked. */
+  verificationStatus: "worker_reported" | "documented" | "ai_inference" | "independently_verified" | "conflicting";
+
+  /** A plain-language confidence marker; uncertainty remains visible. */
+  confidence: "high" | "medium" | "low" | "unknown";
 }
 
 /**

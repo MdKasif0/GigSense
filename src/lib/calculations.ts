@@ -10,6 +10,22 @@ export interface DeliveryCalculationResult {
   estimatedContributionPerHour: number;
 }
 
+/** Validate the values used by the deterministic estimate. */
+export function validateDeliveryInputs(
+  offeredPayment: number,
+  distanceKm: number,
+  durationMinutes: number,
+  vehicleCostPerKm: number,
+  additionalExpenses: number = 0
+): string | null {
+  if (!Number.isFinite(offeredPayment) || offeredPayment < 0) return "Payment must be a nonnegative number.";
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return "Distance must be greater than zero.";
+  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return "Duration must be greater than zero.";
+  if (!Number.isFinite(vehicleCostPerKm) || vehicleCostPerKm < 0) return "Vehicle cost per kilometre must be nonnegative.";
+  if (!Number.isFinite(additionalExpenses) || additionalExpenses < 0) return "Additional expenses must be nonnegative.";
+  return null;
+}
+
 /**
  * Calculate the profitability metrics for a delivery offer.
  *
@@ -27,11 +43,19 @@ export function calculateDeliveryProfitability(
   vehicleCostPerKm: number,
   additionalExpenses: number = 0
 ): DeliveryCalculationResult {
+  const validationError = validateDeliveryInputs(
+    offeredPayment,
+    distanceKm,
+    durationMinutes,
+    vehicleCostPerKm,
+    additionalExpenses
+  );
+  if (validationError) throw new RangeError(validationError);
+
   const calculatedVehicleCost = distanceKm * vehicleCostPerKm;
   const estimatedContribution =
     offeredPayment - calculatedVehicleCost - additionalExpenses;
-  const estimatedContributionPerHour =
-    durationMinutes > 0 ? (estimatedContribution / durationMinutes) * 60 : 0;
+  const estimatedContributionPerHour = (estimatedContribution / durationMinutes) * 60;
 
   return {
     calculatedVehicleCost: round2(calculatedVehicleCost),
@@ -83,7 +107,7 @@ function round2(n: number): number {
  */
 export function formatCurrency(
   amount: number,
-  currencyCode: string = "AUD"
+  currencyCode: string = "INR"
 ): string {
   if (typeof Intl !== "undefined") {
     return new Intl.NumberFormat(undefined, {
