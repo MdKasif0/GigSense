@@ -1,7 +1,7 @@
 import { AiServiceError, configuredModel, requestAiJson } from "@/lib/ai-server";
 import { parseIncidentAiResponse } from "@/lib/ai-schema";
 
-const SYSTEM = `You create a cautious incident review from worker-provided text and optional manually entered notes about evidence. Return JSON only with keys summary, appealDraft, missingEvidence, extractedFacts, timeline, contradictions. Each extractedFact needs fact and source. Each timeline event needs description, timestamp (ISO string or null), evidenceIds, source (worker_statement|document|ai_inference|independently_verified), verificationStatus (worker_reported|documented|ai_inference|independently_verified|conflicting), confidence (high|medium|low|unknown). Use only supplied information. Do not invent timestamps, policy rules, commitments, or events. A worker statement is not verified. A manually entered document note is documented, not independently verified. Mention unresolved conflicts in summary and appeal. The appeal must be reviewable and factual, never automatically submitted.`;
+const SYSTEM = `You create a cautious incident review from worker-provided text and optional manually entered notes about evidence. Return JSON only with keys summary, appealDraft, missingEvidence, extractedFacts, timeline, contradictions. Each extractedFact needs fact and source, where source is exactly worker_statement, ai_inference, or evidence:<provided evidence id>. Each timeline event needs description, timestamp (ISO string or null), evidenceIds (only provided IDs), source (worker_statement|document|ai_inference|independently_verified), verificationStatus (worker_reported|documented|ai_inference|independently_verified|conflicting), confidence (high|medium|low|unknown). Use only supplied information. Do not invent timestamps, policy rules, commitments, or events. A worker statement is not verified. A manually entered document note is documented, not independently verified. Mention unresolved conflicts in summary and appeal. The appeal must be reviewable and factual, never automatically submitted.`;
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +17,10 @@ export async function POST(request: Request) {
     if (safeEvidence.length !== body.evidence.length) return Response.json({ error: "Invalid evidence payload." }, { status: 400 });
     const result = parseIncidentAiResponse(await requestAiJson(SYSTEM, { title: body.title.slice(0, 300), platform: typeof body.platform === "string" ? body.platform.slice(0, 100) : null, workerStatement: body.workerStatement.slice(0, 8000), evidence: safeEvidence, privacyNote: "Only worker statement, file metadata, and worker-entered evidence notes were supplied. The original binary files were not sent." }));
     if (!result) throw new AiServiceError("AI_INVALID_RESPONSE", "The AI service returned an invalid structured result. Please retry.");
+    const evidenceIds = new Set(safeEvidence.map((item) => (item as { id: string }).id));
+    const validFactSources = result.extractedFacts.every((fact) => fact.source === "worker_statement" || fact.source === "ai_inference" || (fact.source.startsWith("evidence:") && evidenceIds.has(fact.source.slice("evidence:".length))));
+    const validTimelineSources = result.timeline.every((event) => event.evidenceIds.every((id) => evidenceIds.has(id)) && (event.source !== "document" || event.evidenceIds.length > 0));
+    if (!validFactSources || !validTimelineSources) throw new AiServiceError("AI_INVALID_RESPONSE", "The AI response referenced unsupported evidence. Please retry.");
     return Response.json({ ...result, model: configuredModel() });
   } catch (error) {
     if (error instanceof AiServiceError) return Response.json({ error: error.message, code: error.code }, { status: error.code === "AI_UNAVAILABLE" ? 503 : 502 });
