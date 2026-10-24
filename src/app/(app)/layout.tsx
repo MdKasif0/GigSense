@@ -6,9 +6,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col min-h-dvh" style={{ background: "var(--gs-bg)" }}>
       <AppNav />
       <main
-        className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 md:px-6 md:py-8"
-        /* Bottom padding on mobile to clear the fixed tab bar */
-        style={{ paddingBottom: "calc(72px + env(safe-area-inset-bottom))" }}
+        className="flex-1 w-full max-w-xl md:max-w-4xl mx-auto px-4 py-4 md:px-6 md:py-6"
+        /* Bottom padding on mobile to clear the fixed tab bar without overlap */
+        style={{ paddingBottom: "calc(76px + env(safe-area-inset-bottom))" }}
         id="main-content"
       >
         {children}
