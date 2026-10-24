@@ -1,0 +1,44 @@
+{
+  "name": "GigSense",
+  "short_name": "GigSense",
+  "description": "AI-powered financial and incident tools for gig workers.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#2d6a4f",
+  "background_color": "#faf9f6",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["finance", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Delivery Analysis",
+      "short_name": "Analyse",
+      "description": "Evaluate a new delivery offer",
+      "url": "/route-reality/new",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "New Incident",
+      "short_name": "Incident",
+      "description": "Document a new gig incident",
+      "url": "/gig-proof/new",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

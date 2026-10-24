@@ -1,0 +1,461 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { saveIncident, listIncidents, deleteIncident, saveEvidenceBlob, generateId } from "@/lib/db";
+import type { IncidentRecord, EvidenceItem, CreateIncidentInput } from "@/types/incident";
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function IconUpload() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  );
+}
+function IconTrash() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+    </svg>
+  );
+}
+function IconFile() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+    </svg>
+  );
+}
+function IconShield() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const PLATFORMS = ["Zomato", "Swiggy", "Porter", "Dunzo", "Blinkit", "Zepto", "Rapido", "Urban Company", "Other"];
+
+function fmtDate(iso: string) {
+  try {
+    const d = new Date(iso);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const hours = String(d.getHours()).padStart(2, "0");
+    const mins = String(d.getMinutes()).padStart(2, "0");
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${hours}:${mins}`;
+  } catch {
+    return "";
+  }
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function evidenceTypeFromMime(mime: string): EvidenceItem["type"] {
+  if (mime.startsWith("image/")) return "screenshot";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
+  if (mime.includes("pdf") || mime.includes("document") || mime.includes("text")) return "document";
+  return "other";
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface FormState {
+  title: string;
+  platform: string;
+  platformCustom: string;
+  workerStatement: string;
+}
+
+interface FormErrors {
+  title?: string;
+  workerStatement?: string;
+}
+
+const INITIAL_FORM: FormState = {
+  title: "",
+  platform: "",
+  platformCustom: "",
+  workerStatement: "",
+};
+
+interface PendingEvidence {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageKey: string;
+  blob: Blob;
+  type: EvidenceItem["type"];
+  description: string;
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
+export function IncidentDocumenter() {
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [savedRecord, setSavedRecord] = useState<IncidentRecord | null>(null);
+  const [history, setHistory] = useState<IncidentRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    listIncidents()
+      .then(setHistory)
+      .catch(console.error)
+      .finally(() => setHistoryLoading(false));
+  }, []);
+
+  function setField(field: keyof FormState, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+    setErrors((e) => ({ ...e, [field]: undefined }));
+    setSaved(false);
+  }
+
+  function validate(): boolean {
+    const errs: FormErrors = {};
+    if (!form.title.trim()) errs.title = "Incident title is required.";
+    if (!form.workerStatement.trim()) errs.workerStatement = "Please describe what happened.";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!files) return;
+    const added: PendingEvidence[] = [];
+    for (const file of Array.from(files)) {
+      const storageKey = `evidence-${generateId()}`;
+      added.push({
+        id: generateId(),
+        fileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        storageKey,
+        blob: file,
+        type: evidenceTypeFromMime(file.type),
+        description: "",
+      });
+    }
+    setPendingEvidence((p) => [...p, ...added]);
+  }
+
+  function removeEvidence(id: string) {
+    setPendingEvidence((p) => p.filter((e) => e.id !== id));
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFiles(e.dataTransfer.files);
+  }
+
+  async function handleSave() {
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      // Save evidence blobs
+      const evidenceItems: EvidenceItem[] = [];
+      for (const pe of pendingEvidence) {
+        await saveEvidenceBlob(pe.storageKey, pe.blob);
+        evidenceItems.push({
+          id: pe.id,
+          addedAt: new Date().toISOString(),
+          type: pe.type,
+          fileName: pe.fileName,
+          mimeType: pe.mimeType,
+          sizeBytes: pe.sizeBytes,
+          storageKey: pe.storageKey,
+          description: pe.description || undefined,
+        });
+      }
+
+      const platform =
+        form.platform === "Other" ? form.platformCustom.trim() || undefined
+        : form.platform || undefined;
+
+      const record: IncidentRecord = {
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        title: form.title.trim(),
+        platform,
+        workerStatement: form.workerStatement.trim(),
+        timeline: [],
+        evidence: evidenceItems,
+        extractedFacts: [],
+        contradictions: [],
+        generatedReport: null,
+        draftAppeal: null,
+        analysisStatus: "pending",
+        analysisMode: "real",
+      };
+
+      await saveIncident(record);
+      setHistory((h) => [record, ...h]);
+      setSavedRecord(record);
+      setSaved(true);
+      // Reset form
+      setForm(INITIAL_FORM);
+      setPendingEvidence([]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    await deleteIncident(id);
+    setHistory((h) => h.filter((x) => x.id !== id));
+  }
+
+  function handleReset() {
+    setForm(INITIAL_FORM);
+    setPendingEvidence([]);
+    setErrors({});
+    setSaved(false);
+    setSavedRecord(null);
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ── Form card ── */}
+      <div className="gs-card-modern p-6 sm:p-7">
+        <h2 className="text-base font-semibold mb-5" style={{ color: "var(--gs-text-primary)" }}>
+          Incident Details
+        </h2>
+
+        <div className="space-y-4">
+          {/* Title */}
+          <div>
+            <label htmlFor="gp-title" className="gs-label">Incident Title</label>
+            <input
+              id="gp-title"
+              className={`gs-input${errors.title ? " border-[var(--gs-error)]" : ""}`}
+              placeholder="e.g. Order #4829 – Missing item dispute, Account deactivation"
+              value={form.title}
+              onChange={(e) => setField("title", e.target.value)}
+            />
+            {errors.title && <p className="mt-1 text-xs" style={{ color: "var(--gs-error)" }}>{errors.title}</p>}
+          </div>
+
+          {/* Platform */}
+          <div>
+            <label htmlFor="gp-platform" className="gs-label">Platform <span style={{ color: "var(--gs-text-muted)", fontWeight: 400 }}>(optional)</span></label>
+            <select
+              id="gp-platform"
+              className="gs-input"
+              value={form.platform}
+              onChange={(e) => setField("platform", e.target.value)}
+            >
+              <option value="">Select platform…</option>
+              {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          {form.platform === "Other" && (
+            <div>
+              <label htmlFor="gp-platform-custom" className="gs-label">Platform Name</label>
+              <input
+                id="gp-platform-custom"
+                className="gs-input"
+                placeholder="Enter platform name"
+                value={form.platformCustom}
+                onChange={(e) => setField("platformCustom", e.target.value)}
+              />
+            </div>
+          )}
+
+          {/* Statement */}
+          <div>
+            <label htmlFor="gp-statement" className="gs-label">
+              Your Description of What Happened
+            </label>
+            <textarea
+              id="gp-statement"
+              rows={5}
+              className={`gs-input resize-y${errors.workerStatement ? " border-[var(--gs-error)]" : ""}`}
+              placeholder="Describe the incident in your own words. Include dates, times, order numbers, or any relevant context. This is your statement — not independently verified evidence."
+              value={form.workerStatement}
+              onChange={(e) => setField("workerStatement", e.target.value)}
+            />
+            {errors.workerStatement && <p className="mt-1 text-xs" style={{ color: "var(--gs-error)" }}>{errors.workerStatement}</p>}
+            <p className="mt-1 text-xs" style={{ color: "var(--gs-text-muted)" }}>
+              Your description is recorded as a worker statement, not independently verified evidence.
+            </p>
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <p className="gs-label">Evidence Files <span style={{ color: "var(--gs-text-muted)", fontWeight: 400 }}>(optional)</span></p>
+            <div
+              id="gp-upload-zone"
+              className="rounded-lg p-6 text-center cursor-pointer transition-colors"
+              style={{
+                border: `2px dashed ${isDragging ? "var(--gs-green)" : "var(--gs-border-strong)"}`,
+                background: isDragging ? "var(--gs-green-subtle)" : "var(--gs-surface-alt)",
+              }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById("gp-file-input")?.click()}
+              role="button"
+              tabIndex={0}
+              aria-label="Upload evidence files"
+              onKeyDown={(e) => e.key === "Enter" && document.getElementById("gp-file-input")?.click()}
+            >
+              <input
+                id="gp-file-input"
+                type="file"
+                multiple
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt,video/*,audio/*"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <div className="flex justify-center mb-2" style={{ color: "var(--gs-text-muted)" }}>
+                <IconUpload />
+              </div>
+              <p className="text-sm font-medium" style={{ color: "var(--gs-text-secondary)" }}>
+                Drop files here or click to browse
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--gs-text-muted)" }}>
+                Screenshots · Photos · PDFs · Documents · Audio · Video
+              </p>
+            </div>
+          </div>
+
+          {/* Evidence list */}
+          {pendingEvidence.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium" style={{ color: "var(--gs-text-secondary)" }}>
+                {pendingEvidence.length} file{pendingEvidence.length > 1 ? "s" : ""} ready to upload
+              </p>
+              {pendingEvidence.map((pe) => (
+                <div
+                  key={pe.id}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                  style={{ background: "var(--gs-surface-alt)", border: "1px solid var(--gs-border)" }}
+                >
+                  <span style={{ color: "var(--gs-green)" }}><IconFile /></span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--gs-text-primary)" }}>{pe.fileName}</p>
+                    <p className="text-xs" style={{ color: "var(--gs-text-muted)" }}>{pe.type} · {formatBytes(pe.sizeBytes)}</p>
+                  </div>
+                  <button
+                    aria-label={`Remove ${pe.fileName}`}
+                    onClick={() => removeEvidence(pe.id)}
+                    className="p-1.5 rounded-md hover:bg-[var(--gs-border)]"
+                    style={{ color: "var(--gs-text-muted)" }}
+                  >
+                    <IconTrash />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Privacy notice */}
+        <div
+          className="mt-5 flex items-start gap-2 rounded-lg px-3 py-3 text-xs"
+          style={{ background: "var(--gs-green-subtle)", color: "var(--gs-success)" }}
+        >
+          <span className="mt-0.5 shrink-0"><IconShield /></span>
+          <span>All evidence is stored locally on your device. Nothing is sent to any server unless you explicitly request AI analysis.</span>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-5 flex items-center gap-3 flex-wrap">
+          <button
+            id="gp-save-btn"
+            className="gs-btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? "Saving…" : "Save Incident Record"}
+          </button>
+          <button className="gs-btn-secondary" onClick={handleReset} type="button">
+            Clear
+          </button>
+        </div>
+
+        {/* Saved confirmation */}
+        {saved && savedRecord && (
+          <div
+            className="mt-4 rounded-lg px-4 py-3 text-sm"
+            style={{ background: "var(--gs-success-bg)", color: "var(--gs-success)", border: "1px solid var(--gs-green-light)" }}
+          >
+            <p className="font-semibold">Incident recorded: {savedRecord.title}</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--gs-text-secondary)" }}>
+              {savedRecord.evidence.length} evidence file{savedRecord.evidence.length !== 1 ? "s" : ""} saved. AI analysis will be available in a future step.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── History ── */}
+      <div>
+        <h2 className="text-base font-semibold mb-3" style={{ color: "var(--gs-text-primary)" }}>
+          Recorded Incidents
+        </h2>
+        {historyLoading ? (
+          <div className="gs-card p-5 text-sm" style={{ color: "var(--gs-text-muted)" }}>Loading…</div>
+        ) : history.length === 0 ? (
+          <div className="gs-card p-5 text-sm" style={{ color: "var(--gs-text-muted)" }}>
+            No incidents recorded yet. Use the form above to document your first incident.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {history.map((rec) => (
+              <div key={rec.id} className="gs-card-modern px-4 py-3.5 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm" style={{ color: "var(--gs-text-primary)" }}>{rec.title}</span>
+                    {rec.platform && (
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--gs-surface-alt)", color: "var(--gs-text-secondary)" }}>
+                        {rec.platform}
+                      </span>
+                    )}
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded"
+                      style={{
+                        background: rec.analysisStatus === "complete" ? "var(--gs-success-bg)" : "var(--gs-surface-alt)",
+                        color: rec.analysisStatus === "complete" ? "var(--gs-success)" : "var(--gs-text-muted)",
+                      }}
+                    >
+                      {rec.analysisStatus === "pending" ? "Awaiting analysis" : rec.analysisStatus}
+                    </span>
+                    {rec.analysisMode === "sample" && (
+                      <span className="gs-badge-warn" style={{ fontSize: "0.7rem" }}>Sample</span>
+                    )}
+                  </div>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--gs-text-muted)" }}>
+                    {rec.evidence.length} file{rec.evidence.length !== 1 ? "s" : ""} · {fmtDate(rec.createdAt)}
+                  </p>
+                </div>
+                <button
+                  aria-label={`Delete incident: ${rec.title}`}
+                  onClick={() => handleDelete(rec.id)}
+                  className="shrink-0 p-2 rounded-lg transition-colors hover:bg-[var(--gs-surface-alt)]"
+                  style={{ color: "var(--gs-text-muted)" }}
+                >
+                  <IconTrash />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
