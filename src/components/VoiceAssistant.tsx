@@ -51,6 +51,7 @@ export function VoiceAssistant({
   const [error, setError] = useState<string | null>(null);
   const [routeResult, setRouteResult] = useState<VoiceRouteExtraction | null>(null);
   const [incidentResult, setIncidentResult] = useState<VoiceIncidentExtraction | null>(null);
+  const [routeOverrides, setRouteOverrides] = useState({ payment: "", distanceKm: "" });
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
@@ -141,6 +142,7 @@ export function VoiceAssistant({
         const result = parseVoiceRouteExtraction(payload.result);
         if (!result) throw new Error("The extracted offer details were invalid. Please edit the transcript and try again.");
         setRouteResult(result);
+        setRouteOverrides({ payment: result.payment === null ? "" : String(result.payment), distanceKm: result.distanceKm === null ? "" : String(result.distanceKm) });
         setState(result.missingFields.length ? "needs_more_information" : "result_ready");
       } else {
         const result = parseVoiceIncidentExtraction(payload.result);
@@ -155,7 +157,16 @@ export function VoiceAssistant({
   }
 
   function applyResult() {
-    if (routeResult && onRouteApply) onRouteApply(routeResult);
+    if (routeResult && onRouteApply) {
+      const payment = routeOverrides.payment.trim() === "" ? routeResult.payment : Number(routeOverrides.payment);
+      const distanceKm = routeOverrides.distanceKm.trim() === "" ? routeResult.distanceKm : Number(routeOverrides.distanceKm);
+      if (!Number.isFinite(payment) || payment === null || payment < 0 || !Number.isFinite(distanceKm) || distanceKm === null || distanceKm <= 0) {
+        setError("Enter a nonnegative payment and a distance greater than zero before applying this offer.");
+        setState("needs_more_information");
+        return;
+      }
+      onRouteApply({ ...routeResult, payment, distanceKm, missingFields: [] });
+    }
     if (incidentResult && onIncidentApply) onIncidentApply(incidentResult);
   }
 
@@ -186,9 +197,9 @@ export function VoiceAssistant({
 
         {(routeResult || incidentResult) && (
           <div className="gs-voice-result mt-4">
-            {routeResult ? <RoutePreview result={routeResult} /> : null}
+            {routeResult ? <RoutePreview result={routeResult} overrides={routeOverrides} onOverrideChange={setRouteOverrides} /> : null}
             {incidentResult ? <IncidentPreview result={incidentResult} /> : null}
-            {gaps.length > 0 && <div className="mt-3 text-sm" style={{ color: "#8a5c00" }}><strong>Needs review:</strong><ul className="list-disc list-inside">{gaps.map((item) => <li key={item}>{item}</li>)}</ul></div>}
+            {gaps.length > 0 && <div className="mt-3 text-sm" style={{ color: "#8a5c00" }}><strong>Needed to capture this offer:</strong><ul className="list-disc list-inside">{gaps.map((item) => <li key={item}>{item}</li>)}</ul></div>}
             {questions.length > 0 && <div className="mt-3 text-sm" style={{ color: "#687080" }}>{questions.map((question) => <p key={question}>• {question}</p>)}</div>}
           </div>
         )}
@@ -204,9 +215,19 @@ export function VoiceAssistant({
   );
 }
 
-function RoutePreview({ result }: { result: VoiceRouteExtraction }) {
-  const rows = [["Payment", result.payment], ["Distance", result.distanceKm === null ? null : `${result.distanceKm} km`], ["Duration", result.durationMinutes === null ? null : `${result.durationMinutes} min`], ["Vehicle cost", result.vehicleCostPerKm === null ? null : `₹${result.vehicleCostPerKm}/km`], ["Other expenses", result.additionalExpenses === null ? "Not stated" : `₹${result.additionalExpenses}`]];
-  return <div><p className="font-semibold text-sm" style={{ color: "#17191F" }}>Extracted offer details</p><div className="gs-voice-preview-grid">{rows.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value === null ? "Not found" : label === "Payment" && typeof value === "number" ? `₹${value}` : value}</strong></div>)}</div>{result.assumptions.length > 0 && <p className="mt-3 text-xs" style={{ color: "#687080" }}>{result.assumptions.join(" ")}</p>}</div>;
+function RoutePreview({ result, overrides, onOverrideChange }: { result: VoiceRouteExtraction; overrides: { payment: string; distanceKm: string }; onOverrideChange: (values: { payment: string; distanceKm: string }) => void }) {
+  const paymentMissing = overrides.payment.trim() === "";
+  const distanceMissing = overrides.distanceKm.trim() === "";
+  return <div>
+    <p className="font-semibold text-sm" style={{ color: "#17191F" }}>Offer details</p>
+    <div className="gs-voice-preview-grid">
+      <label><span>Payment (₹)</span><input className="gs-voice-inline-input" type="number" min="0" step="0.5" value={overrides.payment} onChange={(event) => onOverrideChange({ ...overrides, payment: event.target.value })} placeholder="Required" /></label>
+      <label><span>Distance (km)</span><input className="gs-voice-inline-input" type="number" min="0.1" step="0.1" value={overrides.distanceKm} onChange={(event) => onOverrideChange({ ...overrides, distanceKm: event.target.value })} placeholder="Required" /></label>
+    </div>
+    {(paymentMissing || distanceMissing) && <p className="mt-3 text-xs" style={{ color: "#8a5c00" }}>Enter the {paymentMissing && distanceMissing ? "payment and distance" : paymentMissing ? "payment" : "distance"} to capture this offer.</p>}
+    {!paymentMissing && !distanceMissing && <p className="mt-3 text-xs" style={{ color: "#687080" }}>Duration, vehicle cost, and other expenses are optional here. Add them later only if you want a full profitability estimate.</p>}
+    {result.assumptions.length > 0 && <p className="mt-2 text-xs" style={{ color: "#687080" }}>{result.assumptions.join(" ")}</p>}
+  </div>;
 }
 
 function IncidentPreview({ result }: { result: VoiceIncidentExtraction }) {

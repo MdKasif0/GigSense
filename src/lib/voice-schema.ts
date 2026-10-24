@@ -59,10 +59,9 @@ export function parseVoiceRouteExtraction(value: unknown): VoiceRouteExtraction 
   const inferredMissing = [
     payment === null ? "Payment" : null,
     distanceKm === null ? "Distance" : null,
-    durationMinutes === null ? "Duration" : null,
-    vehicleCostPerKm === null ? "Vehicle cost per km" : null,
   ].filter((item): item is string => item !== null);
-  return { payment, distanceKm, durationMinutes, vehicleCostPerKm, additionalExpenses, missingFields: [...new Set([...missingFields, ...inferredMissing])], assumptions };
+  const requiredReportedFields = missingFields.filter((item) => /payment|distance/i.test(item));
+  return { payment, distanceKm, durationMinutes, vehicleCostPerKm, additionalExpenses, missingFields: [...new Set([...requiredReportedFields, ...inferredMissing])], assumptions };
 }
 
 export function parseVoiceIncidentExtraction(value: unknown, fallbackWorkerStatement?: string): VoiceIncidentExtraction | null {
