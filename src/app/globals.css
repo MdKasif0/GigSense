@@ -861,19 +861,22 @@ body {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
-  background: var(--gs-green);
+  background: var(--gs-primary);
   color: #ffffff;
   border: none;
-  border-radius: var(--gs-radius-sm);
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
   text-decoration: none;
 }
 .gs-btn-primary:hover {
-  background: var(--gs-green-hover);
-  box-shadow: var(--gs-shadow);
+  background: var(--gs-primary-hover);
+  box-shadow: 0 4px 14px rgba(8, 102, 245, 0.25);
+}
+.gs-btn-primary:active {
+  transform: scale(0.98);
 }
 .gs-btn-secondary {
   display: inline-flex;
@@ -883,8 +886,8 @@ body {
   padding: 0.625rem 1.25rem;
   background: var(--gs-surface);
   color: var(--gs-text-primary);
-  border: 1px solid var(--gs-border-strong);
-  border-radius: var(--gs-radius-sm);
+  border: 1px solid var(--gs-border);
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
@@ -893,7 +896,7 @@ body {
 }
 .gs-btn-secondary:hover {
   background: var(--gs-surface-alt);
-  border-color: var(--gs-green);
+  border-color: var(--gs-border-strong);
 }
 .gs-label {
   display: block;
@@ -907,15 +910,15 @@ body {
   padding: 0.625rem 0.875rem;
   background: var(--gs-surface-alt);
   border: 1px solid var(--gs-border);
-  border-radius: var(--gs-radius-sm);
+  border-radius: 12px;
   font-size: 1rem;
   color: var(--gs-text-primary);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   outline: none;
 }
 .gs-input:focus {
-  border-color: var(--gs-green);
-  box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.12);
+  border-color: var(--gs-primary);
+  box-shadow: 0 0 0 3px rgba(8, 102, 245, 0.12);
 }
 select.gs-input {
   appearance: none;
