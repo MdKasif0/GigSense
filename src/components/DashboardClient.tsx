@@ -212,27 +212,8 @@ export function DashboardClient() {
       />
 
       <div className="relative z-10 max-w-xl mx-auto space-y-6 md:space-y-7 pb-24">
-        {/* ── Top Header: Avatar + Try Premium Pill ── */}
-        <div className="flex items-center justify-between pt-2">
-          {/* Avatar on Left */}
-          <button
-            type="button"
-            onClick={() => setIsOnboardingOpen(true)}
-            className="flex items-center gap-2 group cursor-pointer focus:outline-none"
-            title="View Luna / GigSense Welcome Screen"
-          >
-            <div className="relative w-12 h-12 rounded-full overflow-hidden ring-2 ring-white shadow-sm transition-transform group-hover:scale-105">
-              <Image
-                src="/brand/avatar-alex.jpg"
-                alt="Alex profile avatar"
-                width={120}
-                height={120}
-                priority
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </button>
-
+        {/* ── Top Header: Try Premium Pill (Alex logo removed) ── */}
+        <div className="flex items-center justify-end pt-2">
           {/* Try Premium Orange Glowing Gradient Pill on Right */}
           <button
             type="button"
@@ -245,10 +226,10 @@ export function DashboardClient() {
           </button>
         </div>
 
-        {/* ── Greeting Heading (Exact Typography from Mockup) ── */}
+        {/* ── Greeting Heading ── */}
         <div className="pt-2">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#1A1D20] leading-none">
-            Hello Alex, 👋
+            Hello Kasif, 👋
           </h1>
           <div className="mt-2 text-2xl sm:text-[28px] font-bold tracking-tight text-[#1A1D20] leading-tight">
             Make anything you want,
