@@ -72,6 +72,10 @@ function fmtDate(iso: string) {
   }
 }
 
+function parseNumericInput(value: string): number {
+  return value.trim() === "" ? Number.NaN : Number(value);
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FormState {
@@ -146,11 +150,11 @@ export function DeliveryAnalyzer() {
 
   function validate(): boolean {
     const errs: FormErrors = {};
-    const pay = parseFloat(form.offeredPayment);
-    const dist = parseFloat(form.estimatedDistanceKm);
-    const dur = parseFloat(form.estimatedDurationMinutes);
-    const cost = parseFloat(form.vehicleCostPerKm);
-    const extra = form.additionalExpenses.trim() === "" ? 0 : parseFloat(form.additionalExpenses);
+    const pay = parseNumericInput(form.offeredPayment);
+    const dist = parseNumericInput(form.estimatedDistanceKm);
+    const dur = parseNumericInput(form.estimatedDurationMinutes);
+    const cost = parseNumericInput(form.vehicleCostPerKm);
+    const extra = form.additionalExpenses.trim() === "" ? 0 : parseNumericInput(form.additionalExpenses);
     const error = validateDeliveryInputs(pay, dist, dur, cost, extra);
     if (error) {
       if (isNaN(pay) || pay < 0) errs.offeredPayment = "Enter a nonnegative payment amount.";
@@ -165,11 +169,11 @@ export function DeliveryAnalyzer() {
 
   function analyse() {
     if (!validate()) return;
-    const pay = parseFloat(form.offeredPayment);
-    const dist = parseFloat(form.estimatedDistanceKm);
-    const dur = parseFloat(form.estimatedDurationMinutes);
-    const cost = parseFloat(form.vehicleCostPerKm);
-    const extra = form.additionalExpenses.trim() === "" ? 0 : parseFloat(form.additionalExpenses);
+    const pay = parseNumericInput(form.offeredPayment);
+    const dist = parseNumericInput(form.estimatedDistanceKm);
+    const dur = parseNumericInput(form.estimatedDurationMinutes);
+    const cost = parseNumericInput(form.vehicleCostPerKm);
+    const extra = form.additionalExpenses.trim() === "" ? 0 : parseNumericInput(form.additionalExpenses);
     const calc = calculateDeliveryProfitability(pay, dist, dur, cost, extra);
     const record: DeliveryAnalysis = {
       id: generateId(),

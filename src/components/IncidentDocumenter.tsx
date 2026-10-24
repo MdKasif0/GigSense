@@ -230,7 +230,11 @@ export function IncidentDocumenter() {
           },
         ],
         evidence: evidenceItems,
-        extractedFacts: [],
+        extractedFacts: [{
+          id: generateId(),
+          fact: form.workerStatement.trim(),
+          source: "worker_statement",
+        }],
         contradictions: [],
         generatedReport: null,
         draftAppeal: null,
@@ -466,7 +470,7 @@ export function IncidentDocumenter() {
               <div key={event.id} className="rounded-lg p-3" style={{ background: "var(--gs-surface-alt)", border: "1px solid var(--gs-border)" }}>
                 <p className="text-sm" style={{ color: "var(--gs-text-primary)" }}>{event.description}</p>
                 <p className="text-xs mt-1" style={{ color: "var(--gs-text-muted)" }}>
-                  {event.timestamp ? fmtDate(event.timestamp) : "Time unknown"} · {event.source.replace("_", " ")} · {event.verificationStatus.replace("_", " ")} · confidence: {event.confidence}
+                  {event.timestamp ? fmtDate(event.timestamp) : "Time unknown"} · {event.source?.replace("_", " ") ?? "worker statement"} · {event.verificationStatus?.replace("_", " ") ?? "worker reported"} · confidence: {event.confidence ?? "unknown"}
                 </p>
               </div>
             ))}
