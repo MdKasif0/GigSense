@@ -12,6 +12,8 @@ export async function requestAiJson(system: string, input: unknown): Promise<unk
   const key = getAiApiKey();
   if (!key) throw new AiServiceError("AI_UNAVAILABLE", "Live AI is not configured. Add GIGSENSE_AI_API_KEY on the server to enable it.");
   const provider = getAiProvider();
+  const model = getAiModel();
+  if (!provider || !model) throw new AiServiceError("AI_UNAVAILABLE", "Live AI configuration is incomplete. Add the provider and text model on the server.");
   if (provider !== "groq" && provider !== "openai") throw new AiServiceError("AI_PROVIDER_UNSUPPORTED", "This build supports Groq or OpenAI-compatible providers only.");
   const baseUrl = provider === "groq" ? "https://api.groq.com/openai/v1" : "https://api.openai.com/v1";
 
@@ -21,7 +23,7 @@ export async function requestAiJson(system: string, input: unknown): Promise<unk
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: getAiModel(),
+        model,
         temperature: 0.1,
         response_format: { type: "json_object" },
         messages: [
@@ -47,5 +49,7 @@ export async function requestAiJson(system: string, input: unknown): Promise<unk
 }
 
 export function configuredModel(): string {
-  return getAiModel();
+  const model = getAiModel();
+  if (!model) throw new AiServiceError("AI_UNAVAILABLE", "Live AI configuration is incomplete. Add the text model on the server.");
+  return model;
 }

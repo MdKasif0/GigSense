@@ -1,0 +1,6 @@
+[build]
+  command = "npm run build"
+
+[build.environment]
+  # These are non-secret deployment selectors. Keep the API key scanned.
+  SECRETS_SCAN_OMIT_KEYS = "GIGSENSE_AI_MODEL,GIGSENSE_AI_PROVIDER"

@@ -16,19 +16,22 @@ export function getAiApiKey(): string | null {
   return key && key.length > 0 ? key : null;
 }
 
-/** The AI provider to use. Defaults to Groq if unconfigured. */
-export function getAiProvider(): string {
-  return process.env.GIGSENSE_AI_PROVIDER ?? "groq";
+/** The configured AI provider, or null when the server setup is incomplete. */
+export function getAiProvider(): string | null {
+  const provider = process.env.GIGSENSE_AI_PROVIDER;
+  return provider && provider.length > 0 ? provider : null;
 }
 
-/** Model identifier for the AI provider. */
-export function getAiModel(): string {
-  return process.env.GIGSENSE_AI_MODEL ?? "openai/gpt-oss-120b";
+/** Text-generation model identifier, supplied only through server configuration. */
+export function getAiModel(): string | null {
+  const model = process.env.GIGSENSE_AI_MODEL;
+  return model && model.length > 0 ? model : null;
 }
 
 /** Speech-to-text model identifier, used only by the server transcription route. */
-export function getSttModel(): string {
-  return process.env.GIGSENSE_STT_MODEL ?? "whisper-large-v3";
+export function getSttModel(): string | null {
+  const model = process.env.GIGSENSE_STT_MODEL;
+  return model && model.length > 0 ? model : null;
 }
 
 /** Returns true only when a valid AI API key has been configured. */
