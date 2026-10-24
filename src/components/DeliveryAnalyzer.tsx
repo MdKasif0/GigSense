@@ -9,6 +9,8 @@ import {
 } from "@/lib/calculations";
 import { saveDelivery, listDeliveries, deleteDelivery, generateId } from "@/lib/db";
 import { parseDeliveryAiResponse } from "@/lib/ai-schema";
+import { VoiceAssistant } from "@/components/VoiceAssistant";
+import type { VoiceRouteExtraction } from "@/lib/voice-schema";
 import type { DeliveryAnalysis } from "@/types/delivery";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -118,6 +120,7 @@ export function DeliveryAnalyzer() {
   const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -288,6 +291,21 @@ export function DeliveryAnalyzer() {
     setAiError(null);
   }
 
+  function applyVoiceOffer(values: VoiceRouteExtraction) {
+    setForm((current) => ({
+      ...current,
+      ...(values.payment !== null ? { offeredPayment: String(values.payment) } : {}),
+      ...(values.distanceKm !== null ? { estimatedDistanceKm: String(values.distanceKm) } : {}),
+      ...(values.durationMinutes !== null ? { estimatedDurationMinutes: String(values.durationMinutes) } : {}),
+      ...(values.vehicleCostPerKm !== null ? { vehicleCostPerKm: String(values.vehicleCostPerKm) } : {}),
+      ...(values.additionalExpenses !== null ? { additionalExpenses: String(values.additionalExpenses) } : {}),
+    }));
+    setErrors({});
+    setResult(null);
+    setSaved(false);
+    setVoiceOpen(false);
+  }
+
   const verdict = result ? getProfitabilityVerdict(result.estimatedContributionPerHour) : null;
 
   return (
@@ -406,6 +424,9 @@ export function DeliveryAnalyzer() {
 
         {/* Actions */}
         <div className="mt-5 flex items-center gap-3 flex-wrap">
+          <button className="gs-btn-secondary" onClick={() => setVoiceOpen(true)} type="button">
+            <span aria-hidden="true">🎙</span> Describe offer by voice
+          </button>
           <button
             id="rr-analyse-btn"
             className="gs-btn-primary"
@@ -422,6 +443,8 @@ export function DeliveryAnalyzer() {
           </button>
         </div>
       </div>
+
+      {voiceOpen && <VoiceAssistant workflow="route" onClose={() => setVoiceOpen(false)} onRouteApply={applyVoiceOffer} />}
 
       {/* ── Results card ── */}
       {result && verdict && (

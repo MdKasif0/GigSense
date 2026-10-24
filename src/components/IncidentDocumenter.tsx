@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { saveIncident, listIncidents, deleteIncident, saveEvidenceBlob, generateId } from "@/lib/db";
 import { incidentProvenance, parseIncidentAiResponse } from "@/lib/ai-schema";
+import { VoiceAssistant } from "@/components/VoiceAssistant";
+import type { VoiceIncidentExtraction } from "@/lib/voice-schema";
 import type { IncidentRecord, EvidenceItem } from "@/types/incident";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -132,6 +134,7 @@ export function IncidentDocumenter() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [transcribingEvidenceId, setTranscribingEvidenceId] = useState<string | null>(null);
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   useEffect(() => {
     listIncidents()
@@ -347,6 +350,19 @@ export function IncidentDocumenter() {
     setFileError(null);
     setAiState("idle");
     setAiError(null);
+  }
+
+  function applyVoiceIncident(values: VoiceIncidentExtraction) {
+    setForm((current) => ({
+      ...current,
+      title: values.title,
+      workerStatement: values.workerStatement,
+      eventDescription: values.eventDescription,
+      eventDateTime: values.eventDateTime ? values.eventDateTime.slice(0, 16) : current.eventDateTime,
+    }));
+    setErrors({});
+    setSaved(false);
+    setVoiceOpen(false);
   }
 
   return (
