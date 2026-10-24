@@ -219,14 +219,26 @@ export function VoiceAssistant({
 function RoutePreview({ result, overrides, onOverrideChange }: { result: VoiceRouteExtraction; overrides: { payment: string; distanceKm: string }; onOverrideChange: (values: { payment: string; distanceKm: string }) => void }) {
   const paymentMissing = overrides.payment.trim() === "";
   const distanceMissing = overrides.distanceKm.trim() === "";
+  const bestOffer = result.offers[0];
   return <div>
-    <p className="font-semibold text-sm" style={{ color: "#17191F" }}>Offer details</p>
+    <p className="font-semibold text-sm" style={{ color: "#17191F" }}>{result.offers.length > 1 ? "Offer comparison" : "Offer details"}</p>
+    {result.offers.length > 1 && <div className="mt-3 space-y-2">
+      {result.offers.map((offer, index) => {
+        const rate = offer.payment / offer.distanceKm;
+        const isBest = index === 0;
+        return <div key={`${offer.label}-${index}`} className="gs-voice-offer-row" style={isBest ? { borderColor: "#0866F5", background: "#f5f7ff" } : undefined}>
+          <div><strong>{offer.label}</strong><span>₹{offer.payment} · {offer.distanceKm} km</span></div>
+          <div className="text-right"><strong>₹{rate.toFixed(2)}/km</strong>{isBest && <span className="gs-voice-best">Recommended</span>}</div>
+        </div>;
+      })}
+      <p className="text-xs" style={{ color: "#687080" }}>Recommended based on the highest offered payment per kilometre. Time, vehicle cost, and other expenses are not included.</p>
+    </div>}
     <div className="gs-voice-preview-grid">
       <label><span>Payment (₹)</span><input className="gs-voice-inline-input" type="number" min="0" step="0.5" value={overrides.payment} onChange={(event) => onOverrideChange({ ...overrides, payment: event.target.value })} placeholder="Required" /></label>
       <label><span>Distance (km)</span><input className="gs-voice-inline-input" type="number" min="0.1" step="0.1" value={overrides.distanceKm} onChange={(event) => onOverrideChange({ ...overrides, distanceKm: event.target.value })} placeholder="Required" /></label>
     </div>
     {(paymentMissing || distanceMissing) && <p className="mt-3 text-xs" style={{ color: "#8a5c00" }}>Enter the {paymentMissing && distanceMissing ? "payment and distance" : paymentMissing ? "payment" : "distance"} to capture this offer.</p>}
-    {!paymentMissing && !distanceMissing && <p className="mt-3 text-xs" style={{ color: "#687080" }}>Duration, vehicle cost, and other expenses are optional here. Add them later only if you want a full profitability estimate.</p>}
+    {!paymentMissing && !distanceMissing && <p className="mt-3 text-xs" style={{ color: "#687080" }}>{bestOffer && result.offers.length > 1 ? `“Apply to offer” uses ${bestOffer.label}. ` : ""}Duration, vehicle cost, and other expenses are optional here. Add them later only if you want a full profitability estimate.</p>}
     {result.assumptions.length > 0 && <p className="mt-2 text-xs" style={{ color: "#687080" }}>{result.assumptions.join(" ")}</p>}
   </div>;
 }

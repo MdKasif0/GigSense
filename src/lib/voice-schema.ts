@@ -36,6 +36,13 @@ export interface VoiceRouteExtraction {
   additionalExpenses: number | null;
   missingFields: string[];
   assumptions: string[];
+  offers: VoiceOffer[];
+}
+
+export interface VoiceOffer {
+  label: string;
+  payment: number;
+  distanceKm: number;
 }
 
 export interface VoiceIncidentExtraction {
@@ -56,12 +63,23 @@ export function parseVoiceRouteExtraction(value: unknown): VoiceRouteExtraction 
   const additionalExpenses = nullableNumber(firstDefined(value, ["additionalExpenses", "extraExpenses", "expenses"]));
   const missingFields = stringList(value.missingFields);
   const assumptions = stringList(value.assumptions);
+  const offers = Array.isArray(value.offers) ? value.offers.slice(0, 3).flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const offerPayment = nullableNumber(firstDefined(item, ["payment", "offeredPayment", "cost"]));
+    const offerDistance = nullableNumber(firstDefined(item, ["distanceKm", "distance", "estimatedDistanceKm"]));
+    if (offerPayment === null || offerDistance === null || offerPayment < 0 || offerDistance <= 0) return [];
+    return [{ label: safeText(item.label, 80) ?? `Offer ${index + 1}`, payment: offerPayment, distanceKm: offerDistance }];
+  }) : [];
+  const rankedOffers = [...offers].sort((left, right) => (right.payment / right.distanceKm) - (left.payment / left.distanceKm));
+  const bestOffer = rankedOffers[0];
+  const selectedPayment = bestOffer?.payment ?? payment;
+  const selectedDistance = bestOffer?.distanceKm ?? distanceKm;
   const inferredMissing = [
-    payment === null ? "Payment" : null,
-    distanceKm === null ? "Distance" : null,
+    selectedPayment === null ? "Payment" : null,
+    selectedDistance === null ? "Distance" : null,
   ].filter((item): item is string => item !== null);
   const requiredReportedFields = missingFields.filter((item) => /payment|distance/i.test(item));
-  return { payment, distanceKm, durationMinutes, vehicleCostPerKm, additionalExpenses, missingFields: [...new Set([...requiredReportedFields, ...inferredMissing])], assumptions };
+  return { payment: selectedPayment, distanceKm: selectedDistance, durationMinutes, vehicleCostPerKm, additionalExpenses, missingFields: [...new Set([...requiredReportedFields, ...inferredMissing])], assumptions, offers: rankedOffers };
 }
 
 export function parseVoiceIncidentExtraction(value: unknown, fallbackWorkerStatement?: string): VoiceIncidentExtraction | null {
