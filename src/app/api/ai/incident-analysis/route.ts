@@ -1,8 +1,6 @@
 import { AiServiceError, configuredModel, requestAiJson } from "@/lib/ai-server";
 import { parseIncidentAiResponse } from "@/lib/ai-schema";
 
-export const runtime = "nodejs";
-
 const SYSTEM = `You create a cautious incident review from worker-provided text and optional manually entered notes about evidence. Return JSON only with keys summary, appealDraft, missingEvidence, extractedFacts, timeline, contradictions. Each extractedFact needs fact and source. Each timeline event needs description, timestamp (ISO string or null), evidenceIds, source (worker_statement|document|ai_inference|independently_verified), verificationStatus (worker_reported|documented|ai_inference|independently_verified|conflicting), confidence (high|medium|low|unknown). Use only supplied information. Do not invent timestamps, policy rules, commitments, or events. A worker statement is not verified. A manually entered document note is documented, not independently verified. Mention unresolved conflicts in summary and appeal. The appeal must be reviewable and factual, never automatically submitted.`;
 
 export async function POST(request: Request) {

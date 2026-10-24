@@ -2,8 +2,6 @@ import { AiServiceError, configuredModel, requestAiJson } from "@/lib/ai-server"
 import { parseDeliveryAiResponse } from "@/lib/ai-schema";
 import { validateDeliveryInputs } from "@/lib/calculations";
 
-export const runtime = "nodejs";
-
 const SYSTEM = `You interpret a delivery estimate. Return JSON only with keys summary, mainConsideration, recommendation, uncertainty. Do not calculate, change, or dispute provided arithmetic. Never call contribution net profit. State that it is an estimate where costs, taxes, unpaid time, or route uncertainty are missing. Do not claim current demand or platform policy. Ground every statement in supplied values.`;
 
 export async function POST(request: Request) {

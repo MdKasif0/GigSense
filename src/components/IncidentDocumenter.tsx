@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { saveIncident, listIncidents, deleteIncident, saveEvidenceBlob, generateId } from "@/lib/db";
+import { incidentProvenance, parseIncidentAiResponse } from "@/lib/ai-schema";
 import type { IncidentRecord, EvidenceItem } from "@/types/incident";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -126,6 +127,8 @@ export function IncidentDocumenter() {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [openedRecord, setOpenedRecord] = useState<IncidentRecord | null>(null);
+  const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     listIncidents()
@@ -179,6 +182,10 @@ export function IncidentDocumenter() {
 
   function removeEvidence(id: string) {
     setPendingEvidence((p) => p.filter((e) => e.id !== id));
+  }
+
+  function setEvidenceDescription(id: string, description: string) {
+    setPendingEvidence((items) => items.map((item) => item.id === id ? { ...item, description } : item));
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
@@ -263,6 +270,46 @@ export function IncidentDocumenter() {
     if (openedRecord?.id === id) setOpenedRecord(null);
   }
 
+  async function handleAiAnalysis(record: IncidentRecord) {
+    setAiState("loading");
+    setAiError(null);
+    try {
+      const response = await fetch("/api/ai/incident-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: record.title,
+          platform: record.platform,
+          workerStatement: record.workerStatement,
+          evidence: record.evidence.map((item) => ({ id: item.id, fileName: item.fileName, description: item.description ?? "" })),
+        }),
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok || typeof payload !== "object" || payload === null) throw new Error(typeof payload === "object" && payload && "error" in payload ? String(payload.error) : "Live AI analysis is unavailable.");
+      const parsed = parseIncidentAiResponse(payload);
+      if (!parsed) throw new Error("The AI response could not be validated. Please retry.");
+      const updated: IncidentRecord = {
+        ...record,
+        updatedAt: new Date().toISOString(),
+        generatedReport: `${parsed.summary}\n\nMissing evidence to consider:\n${parsed.missingEvidence.map((item) => `• ${item}`).join("\n") || "• None identified from the supplied information."}`,
+        draftAppeal: parsed.appealDraft,
+        extractedFacts: parsed.extractedFacts.map((fact) => ({ id: generateId(), ...fact })),
+        timeline: parsed.timeline.map((event) => ({ id: generateId(), ...event })),
+        contradictions: parsed.contradictions.map((item) => ({ id: generateId(), ...item })),
+        analysisStatus: "complete",
+        aiProvenance: incidentProvenance(parsed.model),
+      };
+      await saveIncident(updated);
+      setHistory((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setSavedRecord((item) => item?.id === updated.id ? updated : item);
+      setOpenedRecord(updated);
+      setAiState("idle");
+    } catch (error) {
+      setAiState("error");
+      setAiError(error instanceof Error ? error.message : "Live AI analysis is unavailable.");
+    }
+  }
+
   function handleReset() {
     setForm(INITIAL_FORM);
     setPendingEvidence([]);
@@ -271,6 +318,8 @@ export function IncidentDocumenter() {
     setSavedRecord(null);
     setOpenedRecord(null);
     setFileError(null);
+    setAiState("idle");
+    setAiError(null);
   }
 
   return (
@@ -403,6 +452,14 @@ export function IncidentDocumenter() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: "var(--gs-text-primary)" }}>{pe.fileName}</p>
                     <p className="text-xs" style={{ color: "var(--gs-text-muted)" }}>{pe.type} · {formatBytes(pe.sizeBytes)}</p>
+                    <input
+                      className="gs-input mt-2"
+                      style={{ fontSize: "0.75rem", padding: "0.4rem 0.55rem" }}
+                      value={pe.description}
+                      onChange={(e) => setEvidenceDescription(pe.id, e.target.value)}
+                      placeholder="Optional: manually enter relevant facts from this file for AI review"
+                      aria-label={`Evidence notes for ${pe.fileName}`}
+                    />
                   </div>
                   <button
                     aria-label={`Remove ${pe.fileName}`}
@@ -452,6 +509,13 @@ export function IncidentDocumenter() {
             <p className="text-xs mt-0.5" style={{ color: "var(--gs-text-secondary)" }}>
               {savedRecord.evidence.length} evidence file{savedRecord.evidence.length !== 1 ? "s" : ""} and {savedRecord.timeline.length} timeline event saved locally.
             </p>
+            <div className="mt-3">
+              <button className="gs-btn-secondary" onClick={() => handleAiAnalysis(savedRecord)} disabled={aiState === "loading"}>
+                {aiState === "loading" ? "Reviewing evidence…" : "Generate AI incident review"}
+              </button>
+              <p className="text-xs mt-2" style={{ color: "var(--gs-text-muted)" }}>Only your statement, file metadata, and the manual evidence notes above are sent for AI review. Original files stay on this device.</p>
+              {aiError && <p className="text-xs mt-2" style={{ color: "var(--gs-error)" }}>{aiError} You can keep the incident record and add relevant facts manually.</p>}
+            </div>
           </div>
         )}
       </div>
@@ -475,6 +539,25 @@ export function IncidentDocumenter() {
               </div>
             ))}
           </div>
+          {openedRecord.generatedReport && (
+            <div className="mt-4 rounded-lg p-3" style={{ background: "var(--gs-green-subtle)", border: "1px solid var(--gs-green-light)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--gs-success)" }}>AI incident summary</p>
+              <p className="text-sm whitespace-pre-line mt-1" style={{ color: "var(--gs-text-secondary)" }}>{openedRecord.generatedReport}</p>
+              {openedRecord.aiProvenance && <p className="text-xs mt-2" style={{ color: "var(--gs-text-muted)" }}>Live model review ({openedRecord.aiProvenance.model}); based on worker-entered text and manual evidence notes only.</p>}
+            </div>
+          )}
+          {openedRecord.draftAppeal && (
+            <div className="mt-3 rounded-lg p-3" style={{ background: "var(--gs-surface-alt)", border: "1px solid var(--gs-border)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--gs-text-primary)" }}>Draft for your review — not submitted</p>
+              <p className="text-sm whitespace-pre-line mt-1" style={{ color: "var(--gs-text-secondary)" }}>{openedRecord.draftAppeal}</p>
+            </div>
+          )}
+          {!openedRecord.generatedReport && (
+            <div className="mt-4">
+              <button className="gs-btn-secondary" onClick={() => handleAiAnalysis(openedRecord)} disabled={aiState === "loading"}>{aiState === "loading" ? "Reviewing evidence…" : "Generate AI incident review"}</button>
+              {aiError && <p className="text-xs mt-2" style={{ color: "var(--gs-error)" }}>{aiError} Add the relevant facts manually and keep this record as your source of truth.</p>}
+            </div>
+          )}
         </section>
       )}
 
