@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { listDeliveries, listIncidents } from "@/lib/db";
 import { getProfitabilityVerdict } from "@/lib/calculations";
@@ -155,13 +156,14 @@ export function DashboardClient() {
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div
-              className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-white text-base shadow-sm"
-              style={{ background: "linear-gradient(135deg, var(--gs-green), #1b4332)" }}
-              aria-label="Gig worker profile"
-            >
-              GS
-            </div>
+            <Image
+              src="/brand/gigsense-logo.png"
+              alt="GigSense"
+              width={408}
+              height={394}
+              priority
+              className="w-11 h-11 rounded-full object-cover shadow-sm"
+            />
             <span
               className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white"
               style={{ background: "var(--gs-green-light)" }}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -50,12 +51,9 @@ function GigSenseLogo() {
   return (
     <div className="flex items-center gap-2.5">
       <div
-        className="flex items-center justify-center w-8 h-8 rounded-lg text-white text-sm font-black select-none"
-        style={{ background: "var(--gs-green)", letterSpacing: "-0.02em" }}
+        className="w-9 h-9 shrink-0 overflow-hidden rounded-[10px]"
         aria-hidden="true"
-      >
-        G
-      </div>
+      ><Image src="/brand/gigsense-logo.png" alt="" width={408} height={394} priority className="w-full h-full object-cover" /></div>
       <div>
         <span
           className="font-bold text-base tracking-tight leading-none block"
