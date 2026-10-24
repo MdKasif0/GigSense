@@ -198,8 +198,8 @@ function TabButton({
       <span
         className="rounded-full text-xs px-1.5 py-0.5 min-w-[1.25rem] text-center"
         style={{
-          background: active ? "var(--gs-green-subtle)" : "var(--gs-border)",
-          color: active ? "var(--gs-green)" : "var(--gs-text-muted)",
+          background: active ? "var(--gs-primary-subtle)" : "var(--gs-border)",
+          color: active ? "var(--gs-primary)" : "var(--gs-text-muted)",
         }}
       >
         {count}
