@@ -115,6 +115,7 @@ export function DeliveryAnalyzer() {
   const [result, setResult] = useState<DeliveryAnalysis | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [history, setHistory] = useState<DeliveryAnalysis[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
@@ -207,12 +208,13 @@ export function DeliveryAnalyzer() {
   async function handleSave() {
     if (!result) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await saveDelivery(result);
       setHistory((h) => [result, ...h.filter((x) => x.id !== result.id)]);
       setSaved(true);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setSaveError("This analysis could not be saved on this device. Check browser storage and try again.");
     } finally {
       setSaving(false);
     }
@@ -523,6 +525,7 @@ export function DeliveryAnalyzer() {
               ✓ Saved to your history
             </p>
           )}
+          {saveError && <p className="mt-2 text-xs" style={{ color: "var(--gs-error)" }}>{saveError}</p>}
         </div>
       )}
 

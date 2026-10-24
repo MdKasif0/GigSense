@@ -123,6 +123,7 @@ export function IncidentDocumenter() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([]);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [savedRecord, setSavedRecord] = useState<IncidentRecord | null>(null);
   const [history, setHistory] = useState<IncidentRecord[]>([]);
@@ -228,6 +229,7 @@ export function IncidentDocumenter() {
   async function handleSave() {
     if (!validate()) return;
     setSaving(true);
+    setSaveError(null);
     try {
       // Save evidence blobs
       const evidenceItems: EvidenceItem[] = [];
@@ -289,8 +291,8 @@ export function IncidentDocumenter() {
       // Reset form
       setForm(INITIAL_FORM);
       setPendingEvidence([]);
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setSaveError("This incident could not be saved on this device. Check browser storage and try again.");
     } finally {
       setSaving(false);
     }
@@ -585,6 +587,7 @@ export function IncidentDocumenter() {
             Clear
           </button>
         </div>
+        {saveError && <p className="mt-2 text-xs" style={{ color: "var(--gs-error)" }}>{saveError}</p>}
 
         {/* Saved confirmation */}
         {saved && savedRecord && (

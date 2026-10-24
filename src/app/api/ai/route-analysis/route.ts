@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!result) throw new AiServiceError("AI_INVALID_RESPONSE", "The AI service returned an invalid structured result. Please retry.");
     return Response.json({ ...result, model: configuredModel() });
   } catch (error) {
-    if (error instanceof AiServiceError) return Response.json({ error: error.message, code: error.code }, { status: error.code === "AI_UNAVAILABLE" ? 503 : 502 });
+    if (error instanceof AiServiceError) return Response.json({ error: error.message, code: error.code }, { status: error.code === "AI_UNAVAILABLE" ? 503 : error.code === "AI_RATE_LIMITED" ? 429 : 502 });
     return Response.json({ error: "Unable to analyse this delivery." }, { status: 400 });
   }
 }

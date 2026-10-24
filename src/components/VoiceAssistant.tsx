@@ -52,6 +52,7 @@ export function VoiceAssistant({
   const [routeResult, setRouteResult] = useState<VoiceRouteExtraction | null>(null);
   const [incidentResult, setIncidentResult] = useState<VoiceIncidentExtraction | null>(null);
   const [routeOverrides, setRouteOverrides] = useState({ payment: "", distanceKm: "" });
+  const [isApplying, setIsApplying] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
@@ -160,6 +161,9 @@ export function VoiceAssistant({
   }
 
   async function applyResult() {
+    if (isApplying) return;
+    setIsApplying(true);
+    try {
     if (routeResult && onRouteApply) {
       const payment = routeOverrides.payment.trim() === "" ? routeResult.payment : Number(routeOverrides.payment);
       const distanceKm = routeOverrides.distanceKm.trim() === "" ? routeResult.distanceKm : Number(routeOverrides.distanceKm);
@@ -171,12 +175,13 @@ export function VoiceAssistant({
       await onRouteApply({ ...routeResult, payment, distanceKm, missingFields: [] });
     }
     if (incidentResult && onIncidentApply) {
-      try {
-        await onIncidentApply(incidentResult);
-      } catch {
-        setError("This incident could not be saved on this device. Please try again.");
-        setState("error");
-      }
+      await onIncidentApply(incidentResult);
+    }
+    } catch {
+      setError(workflow === "incident" ? "This incident could not be saved on this device. Please try again." : "This offer could not be applied. Please try again.");
+      setState("error");
+    } finally {
+      setIsApplying(false);
     }
   }
 
@@ -215,7 +220,7 @@ export function VoiceAssistant({
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
           {state === "listening" ? <button className="gs-voice-stop" onClick={stopListening}>Stop listening</button> : <button className="gs-voice-mic" onClick={startListening} aria-label="Start voice input"><MicIcon /></button>}
           <button className="gs-btn-secondary" onClick={understandTranscript} disabled={state === "processing_ai"}>{state === "processing_ai" ? "Understanding…" : "Use transcript"}</button>
-          {(routeResult || incidentResult) && <button className="gs-btn-primary" onClick={applyResult}>Apply to {workflow === "route" ? "offer" : "incident"}</button>}
+          {(routeResult || incidentResult) && <button className="gs-btn-primary" onClick={applyResult} disabled={isApplying}>{isApplying ? "Saving…" : `Apply to ${workflow === "route" ? "offer" : "incident"}`}</button>}
         </div>
         <p className="mt-4 text-center text-xs" style={{ color: "#687080" }}>Your transcript is sent only when you choose “Use transcript”. Audio is not saved by GigSense.</p>
       </section>

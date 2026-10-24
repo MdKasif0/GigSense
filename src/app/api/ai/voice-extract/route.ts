@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     if (!parsed) throw new AiServiceError("AI_INVALID_RESPONSE", "The AI response could not be validated. Please edit the transcript and try again.");
     return Response.json({ workflow, result: parsed, model: configuredModel() });
   } catch (error) {
-    if (error instanceof AiServiceError) return Response.json({ error: error.message, code: error.code }, { status: error.code === "AI_UNAVAILABLE" ? 503 : 502 });
+    if (error instanceof AiServiceError) return Response.json({ error: error.message, code: error.code }, { status: error.code === "AI_UNAVAILABLE" ? 503 : error.code === "AI_RATE_LIMITED" ? 429 : 502 });
     return Response.json({ error: "Unable to understand this transcript. Please edit it and try again." }, { status: 400 });
   }
 }

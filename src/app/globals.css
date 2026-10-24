@@ -796,28 +796,28 @@
   }
 }
 :root {
-  --gs-bg: #f8f9fe;
+  --gs-bg: #f8fafd;
   --gs-surface: #ffffff;
   --gs-surface-alt: #f1f3f8;
-  --gs-border: #e8ecf4;
+  --gs-border: #eef2f6;
   --gs-border-strong: #cbd5e1;
-  --gs-text-primary: #191c21;
-  --gs-text-secondary: #4b5565;
-  --gs-text-muted: #8c97a8;
-  --gs-primary: #0066ff;
-  --gs-primary-hover: #0052cc;
-  --gs-primary-subtle: #edf3ff;
-  --gs-blue: #0066ff;
-  --gs-green: #0066ff;
-  --gs-green-light: #38bdf8;
-  --gs-green-subtle: #edf3ff;
-  --gs-green-hover: #0052cc;
+  --gs-text-primary: #111827;
+  --gs-text-secondary: #6b7280;
+  --gs-text-muted: #9ca3af;
+  --gs-primary: #1d64f2;
+  --gs-primary-hover: #1557d6;
+  --gs-primary-subtle: #edf4ff;
+  --gs-blue: #1d64f2;
+  --gs-green: #16a34a;
+  --gs-green-light: #34d399;
+  --gs-green-subtle: #e6f7ee;
+  --gs-green-hover: #15803d;
   --gs-warning: #f59e0b;
   --gs-warning-bg: #fffbeb;
   --gs-error: #ef4444;
   --gs-error-bg: #fef2f2;
-  --gs-success: #10b981;
-  --gs-success-bg: #ecfdf5;
+  --gs-success: #16a34a;
+  --gs-success-bg: #e6f7ee;
   --gs-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --gs-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --gs-radius-sm: 8px;
@@ -828,7 +828,7 @@
   --gs-shadow: 0 8px 24px -4px rgba(100, 120, 160, 0.08);
   --gs-shadow-lg: 0 14px 38px -6px rgba(100, 120, 160, 0.12);
   --gs-nav-height: 60px;
-  --gs-nav-bg: rgba(255, 255, 255, 0.95);
+  --gs-nav-bg: #ffffff;
 }
 *, *::before, *::after {
   box-sizing: border-box;

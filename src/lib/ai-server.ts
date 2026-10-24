@@ -3,7 +3,7 @@ import "server-only";
 import { getAiApiKey, getAiModel, getAiProvider } from "@/lib/env";
 
 export class AiServiceError extends Error {
-  constructor(public readonly code: "AI_UNAVAILABLE" | "AI_PROVIDER_UNSUPPORTED" | "AI_REQUEST_FAILED" | "AI_INVALID_RESPONSE", message: string) {
+  constructor(public readonly code: "AI_UNAVAILABLE" | "AI_PROVIDER_UNSUPPORTED" | "AI_REQUEST_FAILED" | "AI_INVALID_RESPONSE" | "AI_RATE_LIMITED", message: string) {
     super(message);
   }
 }
@@ -26,27 +26,37 @@ export async function requestAiJson(system: string, input: unknown): Promise<unk
       { role: "user", content: JSON.stringify(input) },
     ],
   };
+  const callProvider = async (body: object) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    try {
+      return await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ ...requestBody, response_format: { type: "json_object" } }),
-    });
+    response = await callProvider({ ...requestBody, response_format: { type: "json_object" } });
     // Some OpenAI-compatible model configurations reject response_format.
     // The prompt still requires JSON, so retry once without that optional flag.
     if (response.status === 400) {
-      response = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify(requestBody),
-      });
+      response = await callProvider(requestBody);
     }
-  } catch {
-    throw new AiServiceError("AI_REQUEST_FAILED", "The AI service could not be reached. Check your connection and try again.");
+  } catch (error) {
+    const message = error instanceof DOMException && error.name === "AbortError"
+      ? "The AI request timed out. Please try again."
+      : "The AI service could not be reached. Check your connection and try again.";
+    throw new AiServiceError("AI_REQUEST_FAILED", message);
   }
   if (!response.ok) {
-    throw new AiServiceError("AI_REQUEST_FAILED", response.status === 401 ? "The server AI key was rejected. Check its configuration." : "The AI service returned an error. Please try again later.");
+    if (response.status === 429) throw new AiServiceError("AI_RATE_LIMITED", "The AI service is busy. Please wait a moment and retry.");
+    throw new AiServiceError("AI_REQUEST_FAILED", response.status === 401 ? "The server AI key was rejected. Check its configuration." : response.status === 400 ? "The configured AI model rejected this request. Check the server model setting." : "The AI service returned an error. Please try again later.");
   }
   const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
   const content = payload.choices?.[0]?.message?.content;
