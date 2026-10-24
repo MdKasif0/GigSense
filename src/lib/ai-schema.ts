@@ -53,7 +53,8 @@ export function parseIncidentAiResponse(value: unknown): IncidentAiResponse | nu
     const source = text(item.source, 200);
     return fact && source ? { fact, source } : null;
   }).filter((item): item is { fact: string; source: string } => Boolean(item));
-  const timeline = value.timeline.map((item) => {
+  const timeline: Array<Omit<TimelineEvent, "id">> = [];
+  for (const item of value.timeline) {
     if (!isRecord(item)) return null;
     const description = text(item.description, 1200);
     const source = item.source;
@@ -62,8 +63,8 @@ export function parseIncidentAiResponse(value: unknown): IncidentAiResponse | nu
     const timestamp = item.timestamp === null || item.timestamp === undefined ? undefined : text(item.timestamp, 100);
     const evidenceIds = Array.isArray(item.evidenceIds) ? item.evidenceIds.filter((id): id is string => typeof id === "string" && id.length <= 200) : null;
     if (!description || typeof source !== "string" || !sources.has(source as TimelineEvent["source"]) || typeof verificationStatus !== "string" || !statuses.has(verificationStatus as TimelineEvent["verificationStatus"]) || typeof confidence !== "string" || !confidences.has(confidence as TimelineEvent["confidence"]) || !evidenceIds) return null;
-    return { description, timestamp, evidenceIds, source: source as TimelineEvent["source"], verificationStatus: verificationStatus as TimelineEvent["verificationStatus"], confidence: confidence as TimelineEvent["confidence"] };
-  }).filter((item): item is Omit<TimelineEvent, "id"> => Boolean(item));
+    timeline.push({ ...(timestamp ? { timestamp } : {}), description, evidenceIds, source: source as TimelineEvent["source"], verificationStatus: verificationStatus as TimelineEvent["verificationStatus"], confidence: confidence as TimelineEvent["confidence"] });
+  }
   const contradictions = value.contradictions.map((item) => {
     if (!isRecord(item)) return null;
     const description = text(item.description, 1200);
