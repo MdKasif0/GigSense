@@ -162,25 +162,6 @@ export function DeliveryAnalyzer() {
     if (result) { setResult(null); setSaved(false); setAiState("idle"); setAiError(null); }
   }
 
-  function validate(): boolean {
-    const errs: FormErrors = {};
-    const pay = parseNumericInput(form.offeredPayment);
-    const dist = parseNumericInput(form.estimatedDistanceKm);
-    const dur = parseNumericInput(form.estimatedDurationMinutes);
-    const cost = parseNumericInput(form.vehicleCostPerKm);
-    const extra = form.additionalExpenses.trim() === "" ? 0 : parseNumericInput(form.additionalExpenses);
-    const error = validateDeliveryInputs(pay, dist, dur, cost, extra);
-    if (error) {
-      if (isNaN(pay) || pay < 0) errs.offeredPayment = "Enter a nonnegative payment amount.";
-      if (isNaN(dist) || dist <= 0) errs.estimatedDistanceKm = "Enter a distance greater than zero.";
-      if (isNaN(dur) || dur <= 0) errs.estimatedDurationMinutes = "Enter a duration greater than zero.";
-      if (isNaN(cost) || cost < 0) errs.vehicleCostPerKm = "Enter a nonnegative cost per km.";
-      if (isNaN(extra) || extra < 0) errs.additionalExpenses = "Enter nonnegative additional expenses.";
-    }
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }
-
   function analyse() {
     analyseForm(form);
   }
