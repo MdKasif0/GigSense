@@ -83,15 +83,6 @@ function IconSend() {
   );
 }
 
-function IconCrown() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
-      <circle cx="12" cy="19" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
 function IconChatBubble() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -210,19 +201,6 @@ export function DashboardClient() {
       />
 
       <div className="relative z-10 max-w-xl mx-auto space-y-6 md:space-y-7 pb-24">
-        {/* ── Top Header: Try Premium Pill (Alex logo removed) ── */}
-        <div className="flex items-center justify-end pt-2">
-          {/* Try Premium Orange Glowing Gradient Pill on Right */}
-          <button
-            type="button"
-            onClick={() => router.push("/history")}
-            className="gs-premium-btn"
-            id="btn-try-premium"
-          >
-            <IconCrown />
-            <span>Try premium</span>
-          </button>
-        </div>
 
         {/* ── Greeting Heading ── */}
         <div className="pt-2">
