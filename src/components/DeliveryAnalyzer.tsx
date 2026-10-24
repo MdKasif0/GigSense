@@ -107,7 +107,7 @@ const INITIAL_FORM: FormState = {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function DeliveryAnalyzer() {
+export function DeliveryAnalyzer({ aiAvailable }: { aiAvailable: boolean }) {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [result, setResult] = useState<DeliveryAnalysis | null>(null);
@@ -453,7 +453,11 @@ export function DeliveryAnalyzer() {
             ) : (
               <div>
                 <p style={{ color: "var(--gs-text-secondary)" }}>Optional: get a concise interpretation of the validated estimate. It cannot change the calculation.</p>
-                <button className="gs-btn-secondary mt-3" onClick={handleAiAnalysis} disabled={aiState === "loading"}>{aiState === "loading" ? "Analysing…" : "Get AI interpretation"}</button>
+                {aiAvailable ? (
+                  <button className="gs-btn-secondary mt-3" onClick={handleAiAnalysis} disabled={aiState === "loading"}>{aiState === "loading" ? "Analysing…" : "Get AI interpretation"}</button>
+                ) : (
+                  <p className="text-xs mt-2" style={{ color: "var(--gs-warning)" }}>Live AI is unavailable because this installation has no server-side provider key. You can still save this deterministic estimate.</p>
+                )}
                 {aiError && <div className="mt-3 text-xs" style={{ color: "var(--gs-error)" }}>{aiError} You can still save and use this deterministic estimate.</div>}
               </div>
             )}

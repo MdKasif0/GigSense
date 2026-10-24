@@ -115,7 +115,7 @@ interface PendingEvidence {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function IncidentDocumenter() {
+export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([]);
@@ -510,9 +510,9 @@ export function IncidentDocumenter() {
               {savedRecord.evidence.length} evidence file{savedRecord.evidence.length !== 1 ? "s" : ""} and {savedRecord.timeline.length} timeline event saved locally.
             </p>
             <div className="mt-3">
-              <button className="gs-btn-secondary" onClick={() => handleAiAnalysis(savedRecord)} disabled={aiState === "loading"}>
+              {aiAvailable ? <button className="gs-btn-secondary" onClick={() => handleAiAnalysis(savedRecord)} disabled={aiState === "loading"}>
                 {aiState === "loading" ? "Reviewing evidence…" : "Generate AI incident review"}
-              </button>
+              </button> : <p className="text-xs" style={{ color: "var(--gs-warning)" }}>Live AI is unavailable because this installation has no server-side provider key. Your record and manual timeline are still saved locally.</p>}
               <p className="text-xs mt-2" style={{ color: "var(--gs-text-muted)" }}>Only your statement, file metadata, and the manual evidence notes above are sent for AI review. Original files stay on this device.</p>
               {aiError && <p className="text-xs mt-2" style={{ color: "var(--gs-error)" }}>{aiError} You can keep the incident record and add relevant facts manually.</p>}
             </div>
@@ -552,7 +552,7 @@ export function IncidentDocumenter() {
               <p className="text-sm whitespace-pre-line mt-1" style={{ color: "var(--gs-text-secondary)" }}>{openedRecord.draftAppeal}</p>
             </div>
           )}
-          {!openedRecord.generatedReport && (
+          {!openedRecord.generatedReport && aiAvailable && (
             <div className="mt-4">
               <button className="gs-btn-secondary" onClick={() => handleAiAnalysis(openedRecord)} disabled={aiState === "loading"}>{aiState === "loading" ? "Reviewing evidence…" : "Generate AI incident review"}</button>
               {aiError && <p className="text-xs mt-2" style={{ color: "var(--gs-error)" }}>{aiError} Add the relevant facts manually and keep this record as your source of truth.</p>}
