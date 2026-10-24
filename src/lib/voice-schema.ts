@@ -59,6 +59,6 @@ export function parseVoiceIncidentExtraction(value: unknown): VoiceIncidentExtra
   const eventDateTime = value.eventDateTime === null ? null : safeText(value.eventDateTime, 100);
   const missingInformation = stringList(value.missingInformation);
   const followUpQuestions = stringList(value.followUpQuestions);
-  if (!title || !workerStatement || !eventDescription || eventDateTime === null && value.eventDateTime !== null || !missingInformation || !followUpQuestions) return null;
+  if (!title || !workerStatement || !eventDescription || !(value.eventDateTime === null || typeof eventDateTime === "string") || !missingInformation || !followUpQuestions) return null;
   return { title, workerStatement, eventDescription, eventDateTime, missingInformation, followUpQuestions };
 }

@@ -534,6 +534,9 @@ export function IncidentDocumenter() {
 
         {/* Actions */}
         <div className="mt-5 flex items-center gap-3 flex-wrap">
+          <button className="gs-btn-secondary" onClick={() => setVoiceOpen(true)} type="button">
+            <span aria-hidden="true">🎙</span> Describe incident by voice
+          </button>
           <button
             id="gp-save-btn"
             className="gs-btn-primary"
@@ -567,6 +570,8 @@ export function IncidentDocumenter() {
           </div>
         )}
       </div>
+
+      {voiceOpen && <VoiceAssistant workflow="incident" onClose={() => setVoiceOpen(false)} onIncidentApply={applyVoiceIncident} />}
 
       {openedRecord && (
         <section className="gs-card-modern p-5" aria-label="Incident timeline">

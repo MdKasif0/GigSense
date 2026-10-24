@@ -94,7 +94,10 @@ export function VoiceAssistant({
           if (item.isFinal) finalText += item[0].transcript;
           else partialText += item[0].transcript;
         }
-        if (finalText) setTranscript((current) => `${current} ${finalText}`.trim());
+        if (finalText) {
+          setTranscript((current) => `${current} ${finalText}`.trim());
+          setState("processing_transcription");
+        }
         setInterim(partialText);
         setState("listening");
       };
@@ -107,10 +110,7 @@ export function VoiceAssistant({
         setError(messages[event.error] ?? "Speech recognition failed. Try again or use text input.");
         setState("error");
       };
-      recognition.onend = () => {
-        if (transcript.trim() || interim.trim()) setState("processing_transcription");
-        else setState((current) => current === "error" ? current : "idle");
-      };
+      recognition.onend = () => setState((current) => current === "listening" ? "idle" : current);
       recognition.start();
       setState("listening");
     } catch {
