@@ -9,6 +9,22 @@ import { getProfitabilityVerdict } from "@/lib/calculations";
 import type { DeliveryAnalysis } from "@/types/delivery";
 import type { IncidentRecord } from "@/types/incident";
 
+type BrowserRecognitionResult = { transcript: string };
+type BrowserRecognitionEvent = { results: { [index: number]: { [index: number]: BrowserRecognitionResult } } };
+type BrowserRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onstart: (() => void) | null;
+  onresult: ((event: BrowserRecognitionEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+};
+type BrowserRecognitionConstructor = new () => BrowserRecognition;
+type SpeechWindow = Window & { SpeechRecognition?: BrowserRecognitionConstructor; webkitSpeechRecognition?: BrowserRecognitionConstructor };
+
 // ── Icons Matching Refined Mobile System ─────────────────────────────────────
 
 function IconRoute() {
@@ -120,7 +136,6 @@ export function DashboardClient() {
   const router = useRouter();
   const [deliveries, setDeliveries] = useState<DeliveryAnalysis[]>([]);
   const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [quickInput, setQuickInput] = useState("");
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -130,7 +145,7 @@ export function DashboardClient() {
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [parsedParams, setParsedParams] = useState<{ pay?: number; km?: number; mins?: number } | null>(null);
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<BrowserRecognition | null>(null);
 
   useEffect(() => {
     Promise.all([listDeliveries(), listIncidents()])
@@ -138,8 +153,7 @@ export function DashboardClient() {
         setDeliveries(d);
         setIncidents(i);
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(console.error);
   }, []);
 
   // Quick text input parser
@@ -169,7 +183,8 @@ export function DashboardClient() {
   // Voice Recognition setup
   function startListening() {
     if (typeof window === "undefined") return;
-    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const speechWindow = window as SpeechWindow;
+    const SpeechRec = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!SpeechRec) {
       setVoiceState("unsupported");
       return;
@@ -185,7 +200,7 @@ export function DashboardClient() {
         setVoiceState("listening");
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         setVoiceTranscript(transcript);
         setVoiceState("processing");
