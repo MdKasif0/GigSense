@@ -10,7 +10,12 @@ import type { DeliveryAnalysis } from "@/types/delivery";
 import type { IncidentRecord } from "@/types/incident";
 
 type BrowserRecognitionResult = { transcript: string };
-type BrowserRecognitionEvent = { results: { [index: number]: { [index: number]: BrowserRecognitionResult } } };
+type BrowserRecognitionEvent = Event & {
+  results: {
+    length: number;
+    [index: number]: { isFinal: boolean; [index: number]: BrowserRecognitionResult };
+  };
+};
 type BrowserRecognition = {
   continuous: boolean;
   interimResults: boolean;
@@ -19,7 +24,7 @@ type BrowserRecognition = {
   stop: () => void;
   onstart: (() => void) | null;
   onresult: ((event: BrowserRecognitionEvent) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
 };
 type BrowserRecognitionConstructor = new () => BrowserRecognition;
