@@ -148,7 +148,10 @@ export function VoiceAssistant({
         const result = parseVoiceIncidentExtraction(payload.result);
         if (!result) throw new Error("The extracted incident details were invalid. Please edit the transcript and try again.");
         setIncidentResult(result);
-        setState(result.missingInformation.length ? "needs_more_information" : "result_ready");
+        // A worker's own statement is enough to start an editable incident record.
+        // Dates, reference numbers, and evidence can be added later and must not
+        // block a worker from capturing their account in the moment.
+        setState("result_ready");
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The transcript could not be understood.");
@@ -170,8 +173,7 @@ export function VoiceAssistant({
     if (incidentResult && onIncidentApply) onIncidentApply(incidentResult);
   }
 
-  const gaps = routeResult?.missingFields ?? incidentResult?.missingInformation ?? [];
-  const questions = incidentResult?.followUpQuestions ?? [];
+  const gaps = routeResult?.missingFields ?? [];
 
   return (
     <div className="gs-voice-backdrop" role="dialog" aria-modal="true" aria-label={title}>
@@ -200,7 +202,6 @@ export function VoiceAssistant({
             {routeResult ? <RoutePreview result={routeResult} overrides={routeOverrides} onOverrideChange={setRouteOverrides} /> : null}
             {incidentResult ? <IncidentPreview result={incidentResult} /> : null}
             {gaps.length > 0 && <div className="mt-3 text-sm" style={{ color: "#8a5c00" }}><strong>Needed to capture this offer:</strong><ul className="list-disc list-inside">{gaps.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-            {questions.length > 0 && <div className="mt-3 text-sm" style={{ color: "#687080" }}>{questions.map((question) => <p key={question}>• {question}</p>)}</div>}
           </div>
         )}
 
@@ -231,7 +232,12 @@ function RoutePreview({ result, overrides, onOverrideChange }: { result: VoiceRo
 }
 
 function IncidentPreview({ result }: { result: VoiceIncidentExtraction }) {
-  return <div><p className="font-semibold text-sm" style={{ color: "#17191F" }}>{result.title}</p><p className="mt-1 text-sm" style={{ color: "#687080" }}>{result.workerStatement}</p>{result.eventDateTime && <p className="mt-2 text-xs" style={{ color: "#687080" }}>Time mentioned: {result.eventDateTime}</p>}</div>;
+  return <div>
+    <p className="font-semibold text-sm" style={{ color: "#17191F" }}>{result.title}</p>
+    <p className="mt-1 text-sm" style={{ color: "#687080" }}>{result.workerStatement}</p>
+    {result.eventDateTime && <p className="mt-2 text-xs" style={{ color: "#687080" }}>Time mentioned: {result.eventDateTime}</p>}
+    <p className="mt-3 text-xs" style={{ color: "#687080" }}>You can add a date, order reference, or supporting evidence later. This remains your worker statement until evidence is reviewed.</p>
+  </div>;
 }
 
 function MicIcon() {
