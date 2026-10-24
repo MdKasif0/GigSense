@@ -42,8 +42,8 @@ export function VoiceAssistant({
 }: {
   workflow: "route" | "incident";
   onClose: () => void;
-  onRouteApply?: (values: VoiceRouteExtraction) => void;
-  onIncidentApply?: (values: VoiceIncidentExtraction) => void;
+  onRouteApply?: (values: VoiceRouteExtraction) => void | Promise<void>;
+  onIncidentApply?: (values: VoiceIncidentExtraction) => void | Promise<void>;
 }) {
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -159,7 +159,7 @@ export function VoiceAssistant({
     }
   }
 
-  function applyResult() {
+  async function applyResult() {
     if (routeResult && onRouteApply) {
       const payment = routeOverrides.payment.trim() === "" ? routeResult.payment : Number(routeOverrides.payment);
       const distanceKm = routeOverrides.distanceKm.trim() === "" ? routeResult.distanceKm : Number(routeOverrides.distanceKm);
@@ -168,9 +168,16 @@ export function VoiceAssistant({
         setState("needs_more_information");
         return;
       }
-      onRouteApply({ ...routeResult, payment, distanceKm, missingFields: [] });
+      await onRouteApply({ ...routeResult, payment, distanceKm, missingFields: [] });
     }
-    if (incidentResult && onIncidentApply) onIncidentApply(incidentResult);
+    if (incidentResult && onIncidentApply) {
+      try {
+        await onIncidentApply(incidentResult);
+      } catch {
+        setError("This incident could not be saved on this device. Please try again.");
+        setState("error");
+      }
+    }
   }
 
   const gaps = routeResult?.missingFields ?? [];

@@ -364,16 +364,40 @@ export function IncidentDocumenter() {
     setAiError(null);
   }
 
-  function applyVoiceIncident(values: VoiceIncidentExtraction) {
-    setForm((current) => ({
-      ...current,
+  async function applyVoiceIncident(values: VoiceIncidentExtraction) {
+    const now = new Date().toISOString();
+    const record: IncidentRecord = {
+      id: generateId(),
+      createdAt: now,
+      updatedAt: now,
       title: values.title,
       workerStatement: values.workerStatement,
-      eventDescription: values.eventDescription,
-      eventDateTime: values.eventDateTime ? values.eventDateTime.slice(0, 16) : current.eventDateTime,
-    }));
+      timeline: [{
+        id: generateId(),
+        timestamp: values.eventDateTime ?? undefined,
+        description: values.eventDescription,
+        evidenceIds: [],
+        source: "worker_statement",
+        verificationStatus: "worker_reported",
+        confidence: "unknown",
+      }],
+      evidence: [],
+      extractedFacts: [{ id: generateId(), fact: values.workerStatement, source: "worker_statement" }],
+      contradictions: [],
+      generatedReport: null,
+      draftAppeal: null,
+      analysisStatus: "pending",
+      analysisMode: "real",
+    };
+    await saveIncident(record);
+    setHistory((items) => [record, ...items.filter((item) => item.id !== record.id)]);
+    setSavedRecord(record);
+    setOpenedRecord(record);
+    setAppealEdit("");
+    setForm(INITIAL_FORM);
+    setPendingEvidence([]);
     setErrors({});
-    setSaved(false);
+    setSaved(true);
     setVoiceOpen(false);
   }
 
