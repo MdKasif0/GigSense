@@ -18,7 +18,7 @@ export function getAiApiKey(): string | null {
 
 /** The configured AI provider, or null when the server setup is incomplete. */
 export function getAiProvider(): string | null {
-  const provider = process.env.GIGSENSE_AI_PROVIDER ?? (process.env.GROQ_API_KEY ? "groq" : null);
+  const provider = process.env.GIGSENSE_AI_PROVIDER ?? (getAiApiKey() ? "groq" : null);
   return provider && provider.length > 0 ? provider : null;
 }
 

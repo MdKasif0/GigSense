@@ -129,7 +129,7 @@ export function HistoryPanel() {
           {deliveries.length === 0 ? (
             <div className="gs-card p-6 text-sm" style={{ color: "var(--gs-text-muted)" }}>
               No delivery analyses saved yet.{" "}
-              <a href="/route-reality" style={{ color: "var(--gs-green)" }}>Analyse a delivery →</a>
+              <a href="/route-reality" style={{ color: "var(--gs-primary)" }}>Analyse a delivery →</a>
             </div>
           ) : (
             <div className="space-y-2">
@@ -155,7 +155,7 @@ export function HistoryPanel() {
           {incidents.length === 0 ? (
             <div className="gs-card p-6 text-sm" style={{ color: "var(--gs-text-muted)" }}>
               No incidents documented yet.{" "}
-              <a href="/gig-proof" style={{ color: "var(--gs-green)" }}>Document an incident →</a>
+              <a href="/gig-proof" style={{ color: "var(--gs-primary)" }}>Document an incident →</a>
             </div>
           ) : (
             <div className="space-y-2">

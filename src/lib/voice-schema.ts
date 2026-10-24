@@ -8,15 +8,24 @@ function safeText(value: unknown, maxLength = 1200): string | null {
   return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength ? value.trim() : null;
 }
 
-function nullableNumber(value: unknown): number | null | undefined {
-  if (value === null) return null;
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+function nullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && /^-?\d+(?:\.\d+)?$/.test(value.trim())) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
-function stringList(value: unknown): string[] | null {
-  if (!Array.isArray(value)) return null;
-  const items = value.map((item) => safeText(item, 300));
-  return items.every((item): item is string => item !== null) ? items : null;
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => safeText(item, 300)).filter((item): item is string => item !== null);
+}
+
+function firstDefined(record: UnknownRecord, names: string[]): unknown {
+  for (const name of names) if (record[name] !== undefined) return record[name];
+  return undefined;
 }
 
 export interface VoiceRouteExtraction {
@@ -40,25 +49,32 @@ export interface VoiceIncidentExtraction {
 
 export function parseVoiceRouteExtraction(value: unknown): VoiceRouteExtraction | null {
   if (!isRecord(value)) return null;
-  const payment = nullableNumber(value.payment);
-  const distanceKm = nullableNumber(value.distanceKm);
-  const durationMinutes = nullableNumber(value.durationMinutes);
-  const vehicleCostPerKm = nullableNumber(value.vehicleCostPerKm);
-  const additionalExpenses = nullableNumber(value.additionalExpenses);
+  const payment = nullableNumber(firstDefined(value, ["payment", "offeredPayment", "offerPayment"]));
+  const distanceKm = nullableNumber(firstDefined(value, ["distanceKm", "estimatedDistanceKm", "distance"]));
+  const durationMinutes = nullableNumber(firstDefined(value, ["durationMinutes", "estimatedDurationMinutes", "duration"]));
+  const vehicleCostPerKm = nullableNumber(firstDefined(value, ["vehicleCostPerKm", "costPerKm", "vehicleCost"]));
+  const additionalExpenses = nullableNumber(firstDefined(value, ["additionalExpenses", "extraExpenses", "expenses"]));
   const missingFields = stringList(value.missingFields);
   const assumptions = stringList(value.assumptions);
-  if ([payment, distanceKm, durationMinutes, vehicleCostPerKm, additionalExpenses].some((item) => item === undefined) || !missingFields || !assumptions) return null;
-  return { payment: payment ?? null, distanceKm: distanceKm ?? null, durationMinutes: durationMinutes ?? null, vehicleCostPerKm: vehicleCostPerKm ?? null, additionalExpenses: additionalExpenses ?? null, missingFields, assumptions };
+  const inferredMissing = [
+    payment === null ? "Payment" : null,
+    distanceKm === null ? "Distance" : null,
+    durationMinutes === null ? "Duration" : null,
+    vehicleCostPerKm === null ? "Vehicle cost per km" : null,
+  ].filter((item): item is string => item !== null);
+  return { payment, distanceKm, durationMinutes, vehicleCostPerKm, additionalExpenses, missingFields: [...new Set([...missingFields, ...inferredMissing])], assumptions };
 }
 
-export function parseVoiceIncidentExtraction(value: unknown): VoiceIncidentExtraction | null {
+export function parseVoiceIncidentExtraction(value: unknown, fallbackWorkerStatement?: string): VoiceIncidentExtraction | null {
   if (!isRecord(value)) return null;
-  const title = safeText(value.title, 180);
-  const workerStatement = safeText(value.workerStatement, 8000);
-  const eventDescription = safeText(value.eventDescription, 1200);
-  const eventDateTime = value.eventDateTime === null ? null : safeText(value.eventDateTime, 100);
+  const workerStatement = safeText(firstDefined(value, ["workerStatement", "statement", "description"]), 8000) ?? safeText(fallbackWorkerStatement, 8000);
+  const title = safeText(value.title, 180) ?? "Voice incident report";
+  const eventDescription = safeText(firstDefined(value, ["eventDescription", "incidentSummary", "description"]), 1200) ?? workerStatement;
+  const rawDateTime = value.eventDateTime === null || value.eventDateTime === undefined ? null : safeText(value.eventDateTime, 100);
+  const eventDateTime = rawDateTime && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(rawDateTime) ? rawDateTime : null;
   const missingInformation = stringList(value.missingInformation);
   const followUpQuestions = stringList(value.followUpQuestions);
-  if (!title || !workerStatement || !eventDescription || !(value.eventDateTime === null || typeof eventDateTime === "string") || !missingInformation || !followUpQuestions) return null;
+  if (!workerStatement || !eventDescription) return null;
+  if (rawDateTime && !eventDateTime) missingInformation.push("Incident date and full time");
   return { title, workerStatement, eventDescription, eventDateTime, missingInformation, followUpQuestions };
 }

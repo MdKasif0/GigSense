@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const transcript = typeof body.transcript === "string" ? body.transcript.trim().slice(0, 8000) : "";
     if ((workflow !== "route" && workflow !== "incident") || !transcript) return Response.json({ error: "Provide a voice workflow and transcript." }, { status: 400 });
     const result = await requestAiJson(workflow === "route" ? ROUTE_SYSTEM : INCIDENT_SYSTEM, { transcript });
-    const parsed = workflow === "route" ? parseVoiceRouteExtraction(result) : parseVoiceIncidentExtraction(result);
+    const parsed = workflow === "route" ? parseVoiceRouteExtraction(result) : parseVoiceIncidentExtraction(result, transcript);
     if (!parsed) throw new AiServiceError("AI_INVALID_RESPONSE", "The AI response could not be validated. Please edit the transcript and try again.");
     return Response.json({ workflow, result: parsed, model: configuredModel() });
   } catch (error) {
