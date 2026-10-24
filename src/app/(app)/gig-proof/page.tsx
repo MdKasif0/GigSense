@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { IncidentDocumenter } from "@/components/IncidentDocumenter";
-import { isAiConfigured } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "GigProof",
@@ -18,7 +17,7 @@ export default function GigProofPage() {
           Document incidents, attach evidence, and prepare your case.
         </p>
       </div>
-      <IncidentDocumenter aiAvailable={isAiConfigured()} />
+      <IncidentDocumenter />
     </div>
   );
 }

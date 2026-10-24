@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { DeliveryAnalyzer } from "@/components/DeliveryAnalyzer";
-import { isAiConfigured } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "RouteReality",
@@ -18,7 +17,7 @@ export default function RouteRealityPage() {
           Know your real contribution before you accept an offer.
         </p>
       </div>
-      <DeliveryAnalyzer aiAvailable={isAiConfigured()} />
+      <DeliveryAnalyzer />
     </div>
   );
 }

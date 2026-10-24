@@ -107,7 +107,7 @@ const INITIAL_FORM: FormState = {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function DeliveryAnalyzer({ aiAvailable }: { aiAvailable: boolean }) {
+export function DeliveryAnalyzer() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [result, setResult] = useState<DeliveryAnalysis | null>(null);
@@ -117,6 +117,7 @@ export function DeliveryAnalyzer({ aiAvailable }: { aiAvailable: boolean }) {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -143,6 +144,13 @@ export function DeliveryAnalyzer({ aiAvailable }: { aiAvailable: boolean }) {
         }, 0);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/ai/status", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { available: false })
+      .then((payload: { available?: unknown }) => setAiAvailable(payload.available === true))
+      .catch(() => setAiAvailable(false));
   }, []);
 
   function setField(field: keyof FormState, value: string) {
@@ -453,8 +461,10 @@ export function DeliveryAnalyzer({ aiAvailable }: { aiAvailable: boolean }) {
             ) : (
               <div>
                 <p style={{ color: "var(--gs-text-secondary)" }}>Optional: get a concise interpretation of the validated estimate. It cannot change the calculation.</p>
-                {aiAvailable ? (
+                {aiAvailable === true ? (
                   <button className="gs-btn-secondary mt-3" onClick={handleAiAnalysis} disabled={aiState === "loading"}>{aiState === "loading" ? "Analysing…" : "Get AI interpretation"}</button>
+                ) : aiAvailable === null ? (
+                  <p className="text-xs mt-2" style={{ color: "var(--gs-text-muted)" }}>Checking whether live AI is available…</p>
                 ) : (
                   <p className="text-xs mt-2" style={{ color: "var(--gs-warning)" }}>Live AI is unavailable because this installation has no server-side provider key. You can still save this deterministic estimate.</p>
                 )}

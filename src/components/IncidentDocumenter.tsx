@@ -116,7 +116,7 @@ interface PendingEvidence {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
+export function IncidentDocumenter() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [pendingEvidence, setPendingEvidence] = useState<PendingEvidence[]>([]);
@@ -131,12 +131,20 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
   const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
   const [aiError, setAiError] = useState<string | null>(null);
   const [transcribingEvidenceId, setTranscribingEvidenceId] = useState<string | null>(null);
+  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     listIncidents()
       .then(setHistory)
       .catch(console.error)
       .finally(() => setHistoryLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/ai/status", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { available: false })
+      .then((payload: { available?: unknown }) => setAiAvailable(payload.available === true))
+      .catch(() => setAiAvailable(false));
   }, []);
 
   function setField(field: keyof FormState, value: string) {
@@ -479,7 +487,7 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
                       placeholder="Optional: manually enter relevant facts from this file for AI review"
                       aria-label={`Evidence notes for ${pe.fileName}`}
                     />
-                    {pe.type === "audio" && (aiAvailable ? (
+                    {pe.type === "audio" && (aiAvailable === true ? (
                       <button type="button" className="gs-btn-secondary mt-2" style={{ fontSize: "0.75rem", padding: "0.35rem 0.55rem" }} onClick={() => transcribeEvidence(pe)} disabled={transcribingEvidenceId === pe.id}>
                         {transcribingEvidenceId === pe.id ? "Transcribing…" : "Transcribe with Groq"}
                       </button>
@@ -576,7 +584,7 @@ export function IncidentDocumenter({ aiAvailable }: { aiAvailable: boolean }) {
               <p className="text-sm whitespace-pre-line mt-1" style={{ color: "var(--gs-text-secondary)" }}>{openedRecord.draftAppeal}</p>
             </div>
           )}
-          {!openedRecord.generatedReport && aiAvailable && (
+          {!openedRecord.generatedReport && aiAvailable === true && (
             <div className="mt-4">
               <button className="gs-btn-secondary" onClick={() => handleAiAnalysis(openedRecord)} disabled={aiState === "loading"}>{aiState === "loading" ? "Reviewing evidence…" : "Generate AI incident review"}</button>
               {aiError && <p className="text-xs mt-2" style={{ color: "var(--gs-error)" }}>{aiError} Add the relevant facts manually and keep this record as your source of truth.</p>}
