@@ -167,7 +167,6 @@ export function DashboardClient() {
   const router = useRouter();
   const [deliveries, setDeliveries] = useState<DeliveryAnalysis[]>([]);
   const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [quickInput, setQuickInput] = useState("");
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -176,8 +175,7 @@ export function DashboardClient() {
   useEffect(() => {
     Promise.all([listDeliveries(), listIncidents()])
       .then(([d, i]) => { setDeliveries(d); setIncidents(i); })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(console.error);
   }, []);
 
   const recentDeliveries = deliveries.length > 0 ? deliveries.slice(0, 3) : (SAMPLE_DELIVERIES as DeliveryAnalysis[]);
