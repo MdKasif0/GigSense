@@ -200,7 +200,7 @@ export function DashboardClient() {
         aria-hidden="true"
       />
 
-      <div className="relative z-10 max-w-xl mx-auto space-y-6 md:space-y-7 pb-24">
+      <div className="relative z-10 max-w-xl mx-auto space-y-6 md:space-y-7 pb-32">
 
         {/* ── Greeting Heading ── */}
         <div className="pt-2">
@@ -382,10 +382,10 @@ export function DashboardClient() {
         </div>
 
         {/* ── Floating Input Dock (Exact Match to Mockup) ── */}
-        <div className="pt-2">
+        <div className="pt-3 pb-8">
           <form
             onSubmit={handleQuickSubmit}
-            className="gs-input-pill p-3 sm:p-3.5 flex flex-col gap-2.5 shadow-xl"
+            className="gs-chat-dock"
             role="search"
             aria-label="Ask anything input"
           >
@@ -395,7 +395,7 @@ export function DashboardClient() {
               placeholder="Ask anything..."
               value={quickInput}
               onChange={(e) => setQuickInput(e.target.value)}
-              className="w-full bg-transparent border-none outline-none text-base text-[#1A1D20] placeholder-[#8C97A8] px-1"
+              className="w-full bg-transparent border-none outline-none text-base text-[#1A1D20] placeholder-[#8C97A8] px-1 py-1"
             />
 
             {/* Bottom Actions Row: + button on left, mic + blue send button on right */}
@@ -404,10 +404,10 @@ export function DashboardClient() {
               <button
                 type="button"
                 onClick={() => router.push("/route-reality")}
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-[#F4F6FC] hover:bg-[#E9EDF8] text-[#556987] transition-colors cursor-pointer"
+                className="gs-dock-plus-btn"
                 title="New Calculation / Upload Evidence"
               >
-                <span className="text-xl font-light leading-none">+</span>
+                +
               </button>
 
               {/* Right Side: Mic + Send Button */}
@@ -416,16 +416,16 @@ export function DashboardClient() {
                 <button
                   type="button"
                   onClick={() => setIsVoiceChatOpen(true)}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white border border-[#E8ECF4] text-[#556987] hover:border-[#0066FF] hover:text-[#0066FF] shadow-xs transition-all cursor-pointer"
+                  className="gs-dock-mic-btn"
                   title="Voice Chat"
                 >
-                  <IconMic size={18} />
+                  <IconMic size={20} />
                 </button>
 
                 {/* Send Button: Vibrant Cobalt Blue with Drop Shadow */}
                 <button
                   type="submit"
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-[#0066FF] hover:bg-[#0055D6] text-white shadow-md shadow-blue-500/40 transition-transform active:scale-95 cursor-pointer"
+                  className="gs-dock-send-btn"
                   title="Submit Offer Check"
                 >
                   <IconSend />
