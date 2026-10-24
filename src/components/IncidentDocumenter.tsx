@@ -135,6 +135,7 @@ export function IncidentDocumenter() {
   const [transcribingEvidenceId, setTranscribingEvidenceId] = useState<string | null>(null);
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [appealEdit, setAppealEdit] = useState("");
 
   useEffect(() => {
     listIncidents()
@@ -283,6 +284,7 @@ export function IncidentDocumenter() {
       setHistory((h) => [record, ...h]);
       setSavedRecord(record);
       setOpenedRecord(record);
+      setAppealEdit(record.draftAppeal ?? "");
       setSaved(true);
       // Reset form
       setForm(INITIAL_FORM);
@@ -298,6 +300,15 @@ export function IncidentDocumenter() {
     await deleteIncident(id);
     setHistory((h) => h.filter((x) => x.id !== id));
     if (openedRecord?.id === id) setOpenedRecord(null);
+  }
+
+  async function saveAppealEdit() {
+    if (!openedRecord) return;
+    const updated = { ...openedRecord, updatedAt: new Date().toISOString(), draftAppeal: appealEdit.trim() || null };
+    await saveIncident(updated);
+    setOpenedRecord(updated);
+    setHistory((items) => items.map((item) => item.id === updated.id ? updated : item));
+    setSavedRecord((item) => item?.id === updated.id ? updated : item);
   }
 
   async function handleAiAnalysis(record: IncidentRecord) {
@@ -333,6 +344,7 @@ export function IncidentDocumenter() {
       setHistory((items) => items.map((item) => item.id === updated.id ? updated : item));
       setSavedRecord((item) => item?.id === updated.id ? updated : item);
       setOpenedRecord(updated);
+      setAppealEdit(updated.draftAppeal ?? "");
       setAiState("idle");
     } catch (error) {
       setAiState("error");
@@ -602,7 +614,8 @@ export function IncidentDocumenter() {
           {openedRecord.draftAppeal && (
             <div className="mt-3 rounded-lg p-3" style={{ background: "var(--gs-surface-alt)", border: "1px solid var(--gs-border)" }}>
               <p className="text-sm font-semibold" style={{ color: "var(--gs-text-primary)" }}>Draft for your review — not submitted</p>
-              <p className="text-sm whitespace-pre-line mt-1" style={{ color: "var(--gs-text-secondary)" }}>{openedRecord.draftAppeal}</p>
+              <textarea className="gs-input resize-y mt-2" rows={7} value={appealEdit} onChange={(event) => setAppealEdit(event.target.value)} aria-label="Editable appeal draft" />
+              <button className="gs-btn-secondary mt-2" onClick={saveAppealEdit}>Save draft edits</button>
             </div>
           )}
           {!openedRecord.generatedReport && aiAvailable === true && (
@@ -656,7 +669,7 @@ export function IncidentDocumenter() {
                 </div>
                 <button
                   aria-label={`Open incident: ${rec.title}`}
-                  onClick={() => setOpenedRecord(rec)}
+                  onClick={() => { setOpenedRecord(rec); setAppealEdit(rec.draftAppeal ?? ""); }}
                   className="gs-btn-secondary shrink-0"
                   style={{ fontSize: "0.75rem", padding: "0.4rem 0.6rem" }}
                 >

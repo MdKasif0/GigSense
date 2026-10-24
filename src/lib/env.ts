@@ -12,19 +12,19 @@
 export function getAiApiKey(): string | null {
   // This module is safe to import in server components and API routes.
   // It must never be imported in client components.
-  const key = process.env.GIGSENSE_AI_API_KEY;
+  const key = process.env.GIGSENSE_AI_API_KEY ?? process.env.GROQ_API_KEY;
   return key && key.length > 0 ? key : null;
 }
 
 /** The configured AI provider, or null when the server setup is incomplete. */
 export function getAiProvider(): string | null {
-  const provider = process.env.GIGSENSE_AI_PROVIDER;
+  const provider = process.env.GIGSENSE_AI_PROVIDER ?? (process.env.GROQ_API_KEY ? "groq" : null);
   return provider && provider.length > 0 ? provider : null;
 }
 
 /** Text-generation model identifier, supplied only through server configuration. */
 export function getAiModel(): string | null {
-  const model = process.env.GIGSENSE_AI_MODEL;
+  const model = process.env.GIGSENSE_AI_MODEL ?? process.env.GROQ_MODEL;
   return model && model.length > 0 ? model : null;
 }
 
@@ -36,5 +36,5 @@ export function getSttModel(): string | null {
 
 /** Returns true only when a valid AI API key has been configured. */
 export function isAiConfigured(): boolean {
-  return getAiApiKey() !== null;
+  return getAiApiKey() !== null && getAiProvider() !== null && getAiModel() !== null;
 }
