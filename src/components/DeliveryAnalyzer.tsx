@@ -8,6 +8,7 @@ import {
   validateDeliveryInputs,
 } from "@/lib/calculations";
 import { saveDelivery, listDeliveries, deleteDelivery, generateId } from "@/lib/db";
+import { parseDeliveryAiResponse } from "@/lib/ai-schema";
 import type { DeliveryAnalysis } from "@/types/delivery";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -114,6 +115,8 @@ export function DeliveryAnalyzer() {
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<DeliveryAnalysis[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [aiState, setAiState] = useState<"idle" | "loading" | "error">("idle");
+  const [aiError, setAiError] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -145,7 +148,7 @@ export function DeliveryAnalyzer() {
   function setField(field: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
     setErrors((e) => ({ ...e, [field]: undefined }));
-    if (result) { setResult(null); setSaved(false); }
+    if (result) { setResult(null); setSaved(false); setAiState("idle"); setAiError(null); }
   }
 
   function validate(): boolean {
@@ -190,6 +193,8 @@ export function DeliveryAnalyzer() {
     };
     setResult(record);
     setSaved(false);
+    setAiState("idle");
+    setAiError(null);
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
   }
 
@@ -204,6 +209,46 @@ export function DeliveryAnalyzer() {
       console.error(e);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleAiAnalysis() {
+    if (!result) return;
+    setAiState("loading");
+    setAiError(null);
+    try {
+      const response = await fetch("/api/ai/route-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          values: {
+            offeredPayment: result.offeredPayment,
+            distanceKm: result.estimatedDistanceKm,
+            durationMinutes: result.estimatedDurationMinutes,
+            vehicleCostPerKm: result.vehicleCostPerKm,
+            additionalExpenses: result.additionalExpenses ?? 0,
+            vehicleCost: result.calculatedVehicleCost,
+            contribution: result.estimatedContribution,
+            contributionPerHour: result.estimatedContributionPerHour,
+          },
+          assumptions: [
+            "Distance and duration are user-provided estimates.",
+            "Contribution only deducts the entered vehicle and additional expenses.",
+            "Taxes, unpaid time, and other unsupplied operating costs are not included.",
+          ],
+        }),
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok || typeof payload !== "object" || payload === null) throw new Error(typeof payload === "object" && payload && "error" in payload ? String(payload.error) : "Live AI analysis is unavailable.");
+      const parsed = parseDeliveryAiResponse(payload);
+      if (!parsed) throw new Error("The AI response could not be validated. Please retry.");
+      const updated: DeliveryAnalysis = { ...result, aiInterpretation: { mode: "live_ai", createdAt: new Date().toISOString(), ...parsed } };
+      setResult(updated);
+      if (saved) await saveDelivery(updated);
+      setAiState("idle");
+    } catch (error) {
+      setAiState("error");
+      setAiError(error instanceof Error ? error.message : "Live AI analysis is unavailable.");
     }
   }
 
@@ -231,6 +276,8 @@ export function DeliveryAnalyzer() {
     setResult(null);
     setSaved(false);
     setErrors({});
+    setAiState("idle");
+    setAiError(null);
   }
 
   const verdict = result ? getProfitabilityVerdict(result.estimatedContributionPerHour) : null;
@@ -391,6 +438,25 @@ export function DeliveryAnalyzer() {
             <MetricTile label="Estimated contribution after entered expenses" value={fmtCurrency(result.estimatedContribution)} highlight={result.estimatedContribution >= 0} />
             <MetricTile label="Estimated contribution / hour" value={`${fmtCurrency(result.estimatedContributionPerHour)}/hr`} highlight />
             <MetricTile label="Estimated duration" value={formatDuration(result.estimatedDurationMinutes)} />
+          </div>
+
+          <div className="rounded-lg px-4 py-3 text-sm mb-5" style={{ background: "var(--gs-surface-alt)", border: "1px solid var(--gs-border)" }}>
+            <p className="font-medium mb-1" style={{ color: "var(--gs-text-primary)" }}>AI interpretation</p>
+            {result.aiInterpretation ? (
+              <div className="space-y-2" style={{ color: "var(--gs-text-secondary)" }}>
+                <p>{result.aiInterpretation.summary}</p>
+                <p><strong>Most important consideration:</strong> {result.aiInterpretation.mainConsideration}</p>
+                <p><strong>Practical next step:</strong> {result.aiInterpretation.recommendation}</p>
+                <p><strong>Uncertainty:</strong> {result.aiInterpretation.uncertainty}</p>
+                <p className="text-xs" style={{ color: "var(--gs-text-muted)" }}>Live model interpretation ({result.aiInterpretation.model}); it does not change the deterministic calculation above.</p>
+              </div>
+            ) : (
+              <div>
+                <p style={{ color: "var(--gs-text-secondary)" }}>Optional: get a concise interpretation of the validated estimate. It cannot change the calculation.</p>
+                <button className="gs-btn-secondary mt-3" onClick={handleAiAnalysis} disabled={aiState === "loading"}>{aiState === "loading" ? "Analysing…" : "Get AI interpretation"}</button>
+                {aiError && <div className="mt-3 text-xs" style={{ color: "var(--gs-error)" }}>{aiError} You can still save and use this deterministic estimate.</div>}
+              </div>
+            )}
           </div>
 
           {/* Assumptions note */}

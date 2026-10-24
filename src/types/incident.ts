@@ -104,6 +104,15 @@ export interface Contradiction {
   evidenceIds: string[];
 }
 
+/** Provenance for a completed model-assisted incident review. */
+export interface IncidentAiProvenance {
+  mode: "live_ai";
+  model: string;
+  createdAt: string;
+  /** Evidence supplied to the model was limited to worker-entered text and metadata. */
+  evidenceScope: "worker_statement_and_manual_evidence_notes";
+}
+
 /** A complete incident record. */
 export interface IncidentRecord {
   /** UUID v4 – generated client-side on creation. */
@@ -156,6 +165,8 @@ export interface IncidentRecord {
 
   /** Whether this is a real user record or sample/demo data. */
   analysisMode: AnalysisMode;
+
+  aiProvenance?: IncidentAiProvenance;
 }
 
 /** Fields required to create a new incident record. */

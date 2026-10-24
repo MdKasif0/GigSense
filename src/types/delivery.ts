@@ -6,6 +6,17 @@
 /** Distinguishes real user-entered records from demo/sample data. */
 export type AnalysisMode = "real" | "sample";
 
+/** A model interpretation of deterministic values; it never replaces the calculation. */
+export interface DeliveryAiInterpretation {
+  mode: "live_ai";
+  model: string;
+  createdAt: string;
+  summary: string;
+  mainConsideration: string;
+  recommendation: string;
+  uncertainty: string;
+}
+
 /** A single delivery analysis record. */
 export interface DeliveryAnalysis {
   /** UUID v4 – generated client-side on creation. */
@@ -65,6 +76,9 @@ export interface DeliveryAnalysis {
 
   /** Whether this is a real user record or sample/demo data. */
   analysisMode: AnalysisMode;
+
+  /** Optional, server-generated interpretation of the deterministic estimate. */
+  aiInterpretation?: DeliveryAiInterpretation;
 }
 
 /** Fields required to create a new delivery analysis before calculations are run. */
